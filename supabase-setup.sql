@@ -37,7 +37,7 @@ create table if not exists public.crm_workspaces (
 );
 
 create or replace function public.crm_owner_email() returns text
-language sql immutable as $$ select lower('ChickenLover1983@outlook.com') $$;
+language sql immutable as $$ select lower('REPLACE_WITH_OWNER_EMAIL') $$;
 
 create or replace function public.current_company_id() returns uuid
 language sql stable security definer set search_path = public

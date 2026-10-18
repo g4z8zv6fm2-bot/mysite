@@ -64,8 +64,8 @@ function toggleAuthMode(){authMode=authMode==='login'?'signup':'login';showAuth(
 async function resetPassword(){if(localMode()){alert('Password reset is available after connecting Supabase. In local preview mode, create a new account if you forget your password.');return}const email=prompt('Enter the email address for your account:');if(!email)return;try{const {error}=await supabaseClient.auth.resetPasswordForEmail(email.trim().toLowerCase(),{redirectTo:location.origin+location.pathname});if(error)throw error;showAuth('If an account exists for that email, a password reset link has been sent.')}catch(e){showAuth(e.message||'Could not send password reset email.')}}
 function normalizeDb(){if(!db||typeof db!=='object')db={jobs:[],customers:[],team:[],tab:'home'};if(!Array.isArray(db.jobs))db.jobs=[];if(!Array.isArray(db.customers))db.customers=[];if(!Array.isArray(db.team))db.team=[];db.team=db.team.map((m,i)=>typeof m==='string'?{id:'employee-'+i,name:m,role:i===0?'Owner':'Cleaner',phone:'',email:''}:m);if(!db.team.length)db.team=[{id:'owner',name:'Owner',role:'Owner',phone:'',email:''}];if(!db.team.some(m=>m.name==='Owner'&&m.role==='Owner'))db.team.unshift({id:'owner',name:'Owner',role:'Owner',phone:'',email:''});}
 function setSyncStatus(message, bad=false){const el=$('#syncStatus');if(el){el.textContent=message;el.style.color=bad?'#ffd1d1':'#c3d1e3'}}
-async function syncWorkspaceNow(){if(!supabaseClient||!currentUser||!companyId)return;const {error}=await supabaseClient.from('crm_workspaces').upsert({company_id:companyId,data:db,updated_by:currentUser.id,updated_at:new Date().toISOString()},{onConflict:'company_id'});if(error){console.error('Workspace sync failed',error);setSyncStatus('Sync error — check Supabase setup',true)}else setSyncStatus('Synced to cloud')}
-function save(){if(currentUser){try{localStorage.setItem(getDbKey(),JSON.stringify(db))}catch(_){} if(supabaseClient&&companyId){setSyncStatus('Saving…');if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>syncWorkspaceNow(),350)}}}
+async function syncWorkspaceNow(){if(!supabaseClient||!currentUser||!companyId)return;try{const {error}=await supabaseClient.from('crm_workspaces').upsert({company_id:companyId,data:db,updated_by:currentUser.id,updated_at:new Date().toISOString()},{onConflict:'company_id'});if(error)throw error;setSyncStatus('Synced to cloud')}catch(error){console.error('Workspace sync failed',error);setSyncStatus('Cloud save failed: '+(error?.message||'check Supabase setup'),true)}}
+function save(){if(!currentUser)return;try{localStorage.setItem(getDbKey(),JSON.stringify(db))}catch(error){console.error('Local save failed',error);setSyncStatus('Local save failed — browser storage is unavailable',true)}if(supabaseClient&&companyId){setSyncStatus('Saving…');if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>{void syncWorkspaceNow()},350)}}
 async function activateUser(user){
  currentUser=user;
  const {data:profile,error:profileError}=await supabaseClient.from('profiles').select('company_id,role,full_name').eq('user_id',user.id).maybeSingle();
@@ -94,7 +94,7 @@ const fmtMoney=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'
 const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let db={jobs:[],customers:[],team:[],tab:'home'};
 let tab='home',scheduleFilter='all',revPeriod='week',search='';
-function save(){if(currentUser)localStorage.setItem(getDbKey(),JSON.stringify(db))}
+// Legacy duplicate save() removed: keep the cloud-aware save function defined above.
 function setTab(t){tab=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('#welcome').textContent=({home:'Your business at a glance.',schedule:'Manage your jobs.',customers:'Your customer book.',team:'Your team.',revenue:'Track every dollar.'})[t];render()}
 function maps(address){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(address)}
 function jobCard(j){return `<article class="card"><div class="job"><div class="time">${escapeHtml(j.time||'No time')}<br><small>${escapeHtml(j.date||'')}</small></div><div class="jobbody"><h3>${escapeHtml(j.name)}</h3><p>⌖ ${escapeHtml(j.address)}</p><p>Assigned: ${escapeHtml(j.assignee||'Owner')} · <b>${fmtMoney(j.price)}</b></p><span class="pill ${j.status==='Completed'?'':'scheduled'}">${escapeHtml(j.status)}</span></div></div><div class="actions"><a class="button secondary small" href="${maps(j.address)}" target="_blank" rel="noopener">⌖ Directions</a>${j.status!=='Completed'?`<button class="small" onclick="completeJob('${j.id}')">Mark complete</button>`:''}<button class="small secondary" onclick="editJob('${j.id}')">Edit</button><button class="small danger" onclick="deleteJob('${j.id}')">Delete</button></div></article>`}
@@ -134,38 +134,12 @@ async function requestJobNotificationPermission(){
   if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)){alert('Push notifications are not supported in this browser. Try the latest Chrome or Edge.');return}
   if(!currentUser||!supabaseClient||!companyId){alert('Please sign in first.');return}
   const vapid=window.LC_VAPID_PUBLIC_KEY;
-  console.log("VAPID key loaded:", !!vapid);
-console.log("VAPID key length:", vapid?.length);
-console.log(
-  "Decoded key bytes:",
-  vapid ? urlBase64ToUint8Array(vapid).length : 0
-);
-  console.log(
-  "VAPID first byte:",
-  vapid ? urlBase64ToUint8Array(vapid)[0] : "missing"
-);
   if(!vapid||String(vapid).includes('YOUR_')){alert('Push setup is not finished yet. Add the VAPID public key to supabase-config.js and deploy the Supabase push function first.');return}
   const permission=await Notification.requestPermission();if(permission!=='granted'){alert('Notifications are blocked. Allow notifications for this website in your browser site settings.');return}
   const registration=await navigator.serviceWorker.ready;
   let subscription=await registration.pushManager.getSubscription();
-if (!subscription) {
-  const applicationServerKey = urlBase64ToUint8Array(vapid);
-
-  console.log("Service worker scope:", registration.scope);
-  console.log("Notification permission:", Notification.permission);
-  console.log("Application server key bytes:", applicationServerKey.length);
-
-  try {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey
-    });
-  } catch (err) {
-    console.error("Push subscription error details:", err);
-    alert("Push subscription failed: " + err.name + ": " + err.message);
-    return;
-  }
-}  const json=subscription.toJSON();
+  if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(vapid)});
+  const json=subscription.toJSON();
   const {error}=await supabaseClient.from('push_subscriptions').upsert({user_id:currentUser.id,company_id:companyId,endpoint:subscription.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,updated_at:new Date().toISOString()},{onConflict:'endpoint'});
   if(error)throw error;
   localStorage.setItem('lc_job_notifications','on');alert('Push notifications enabled on this device. The server can now send job reminders even when the CRM is closed.');render();

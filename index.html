@@ -140,6 +140,10 @@ console.log(
   "Decoded key bytes:",
   vapid ? urlBase64ToUint8Array(vapid).length : 0
 );
+  console.log(
+  "VAPID first byte:",
+  vapid ? urlBase64ToUint8Array(vapid)[0] : "missing"
+);
   if(!vapid||String(vapid).includes('YOUR_')){alert('Push setup is not finished yet. Add the VAPID public key to supabase-config.js and deploy the Supabase push function first.');return}
   const permission=await Notification.requestPermission();if(permission!=='granted'){alert('Notifications are blocked. Allow notifications for this website in your browser site settings.');return}
   const registration=await navigator.serviceWorker.ready;

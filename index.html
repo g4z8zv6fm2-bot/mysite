@@ -127,36 +127,40 @@ function employeeForm(existing={}){
 function editEmployee(id){const m=db.team.find(m=>m.id===id);if(m&&m.role!=='Owner')employeeForm(m);else if(m)employeeForm(m)}
 function deleteEmployee(id){const m=db.team.find(m=>m.id===id);if(!m||m.role==='Owner')return;if(!confirm(`Remove ${m.name} from the team? Existing jobs assigned to this name will keep their assignment text.`))return;db.team=db.team.filter(m=>m.id!==id);save();render()}
 
-// Upcoming-job reminders: checks scheduled jobs every 60 seconds while the app is open.
-function requestJobNotificationPermission(){
- if(!('Notification' in window)){alert('This browser does not support desktop notifications.');return}
- Notification.requestPermission().then(p=>{if(p==='granted'){localStorage.setItem('lc_job_notifications','on');alert('Job reminders are enabled. Keep the app open to receive reminders.')}else{alert('Notifications were not enabled. You can allow them in your browser site settings.')}});
+// Local reminders work while the CRM is open. Push reminders are sent by the Supabase Edge Function while it is closed.
+function urlBase64ToUint8Array(base64String){const padding='='.repeat((4-base64String.length%4)%4);const raw=atob((base64String+padding).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)))}
+async function requestJobNotificationPermission(){
+ try{
+  if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)){alert('Push notifications are not supported in this browser. Try the latest Chrome or Edge.');return}
+  if(!currentUser||!supabaseClient||!companyId){alert('Please sign in first.');return}
+  const vapid=window.LC_VAPID_PUBLIC_KEY;
+  if(!vapid||String(vapid).includes('YOUR_')){alert('Push setup is not finished yet. Add the VAPID public key to supabase-config.js and deploy the Supabase push function first.');return}
+  const permission=await Notification.requestPermission();if(permission!=='granted'){alert('Notifications are blocked. Allow notifications for this website in your browser site settings.');return}
+  const registration=await navigator.serviceWorker.ready;
+  let subscription=await registration.pushManager.getSubscription();
+  if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(vapid)});
+  const json=subscription.toJSON();
+  const {error}=await supabaseClient.from('push_subscriptions').upsert({user_id:currentUser.id,company_id:companyId,endpoint:subscription.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,updated_at:new Date().toISOString()},{onConflict:'endpoint'});
+  if(error)throw error;
+  localStorage.setItem('lc_job_notifications','on');alert('Push notifications enabled on this device. The server can now send job reminders even when the CRM is closed.');render();
+ }catch(e){console.error('Push notification setup failed',e);alert('Could not enable push notifications: '+(e.message||e)+'\nCheck the push setup steps in README.md.')}
+}
+async function disableJobPushNotifications(){
+ try{const registration=await navigator.serviceWorker.ready;const sub=await registration.pushManager.getSubscription();if(sub){await supabaseClient.from('push_subscriptions').delete().eq('endpoint',sub.endpoint);await sub.unsubscribe()}localStorage.setItem('lc_job_notifications','off');alert('Push notifications disabled on this device.');render()}catch(e){alert('Could not disable notifications: '+(e.message||e))}
 }
 function checkUpcomingJobReminders(){
  if(!('Notification' in window)||Notification.permission!=='granted'||localStorage.getItem('lc_job_notifications')==='off')return;
  const now=Date.now(), windowEnd=now+60*60*1000;
- (db.jobs||[]).forEach(j=>{
-   const raw=j.datetime||j.scheduledAt||((j.date||j.scheduledDate)&&(j.time||j.startTime)?`${j.date||j.scheduledDate}T${j.time||j.startTime}`:(j.date||j.scheduledDate));
-   if(!raw)return;
-   const dt=new Date(raw);
-   if(Number.isNaN(dt.getTime()))return;
-   if(dt.getTime()>=windowEnd-60*1000&&dt.getTime()<windowEnd){
-     const key='lc_job_reminded_'+(j.id||j.jobId||raw);
-     if(localStorage.getItem(key))return;
-     localStorage.setItem(key,'1');
-     const customer=j.customerName||j.customer||j.name||'Scheduled job';
-     const title=j.title||j.service||'Cleaning appointment';
-     new Notification('Job coming up in 1 hour',{body:customer+' — '+title,tag:key});
-   }
- });
+ (db.jobs||[]).forEach(j=>{const raw=j.scheduledAt||j.datetime||((j.date||j.scheduledDate)&&(j.time||j.startTime)?`${j.date||j.scheduledDate}T${j.time||j.startTime}`:(j.date||j.scheduledDate));if(!raw)return;const dt=new Date(raw);if(Number.isNaN(dt.getTime()))return;if(dt.getTime()>=windowEnd-60*1000&&dt.getTime()<windowEnd){const key='lc_job_reminded_'+(j.id||j.jobId||raw);if(localStorage.getItem(key))return;localStorage.setItem(key,'1');const customer=j.customerName||j.customer||j.name||'Scheduled job';const title=j.title||j.service||'Cleaning appointment';new Notification('Job coming up in 1 hour',{body:customer+' — '+title,tag:key})}});
 }
 function renderJobReminderSettings(){
- return `<div class="card"><h3>Job reminders</h3><p class="muted">Get a browser notification about a scheduled job approximately one hour before it starts.</p><div class="row"><span>Browser permission</span><b>${('Notification' in window)?Notification.permission:'Not supported'}</b></div><button onclick="requestJobNotificationPermission()">Enable job notifications</button><p class="muted" style="margin-top:10px">Reminders run while this app is open. Your browser must allow notifications.</p></div>`;
+ const permission=('Notification' in window)?Notification.permission:'Not supported';
+ return `<div class="card"><h3>Job reminders</h3><p class="muted">Enable push alerts for scheduled jobs, including when the CRM is closed. Each device must enable notifications separately.</p><div class="row"><span>Browser permission</span><b>${permission}</b></div><div class="row"><span>Push setup</span><b>${window.LC_VAPID_PUBLIC_KEY&&!String(window.LC_VAPID_PUBLIC_KEY).includes('YOUR_')?'Configured':'Needs setup'}</b></div><div class="actions"><button onclick="requestJobNotificationPermission()">Enable push notifications</button><button class="secondary" onclick="disableJobPushNotifications()">Disable on this device</button></div><p class="muted" style="margin-top:10px">Background alerts require the Supabase push function and scheduled job to be deployed. Notifications depend on browser/OS settings and internet connectivity.</p></div>`;
 }
 setInterval(checkUpcomingJobReminders,60000);
 
 function newJob(existing={}){const customers=db.customers;$('#app').innerHTML=`<div class="topline"><h2>${existing.id?'Edit job':'New job'}</h2><button class="secondary" onclick="setTab('schedule')">Cancel</button></div><form class="card" id="jobForm"><label>Customer / job name</label><input name="name" required value="${escapeHtml(existing.name||'')}" placeholder="Customer name"><label>House address</label><input name="address" required value="${escapeHtml(existing.address||'')}" placeholder="Street, city, ZIP"><div class="formgrid"><div><label>Date</label><input name="date" type="date" required value="${escapeHtml(existing.date||isoToday())}"></div><div><label>Start time</label><input name="time" type="time" required value="${escapeHtml(existing.time||'09:00')}"></div></div><div class="formgrid"><div><label>Job price ($)</label><input name="price" type="number" min="0" step=".01" required value="${escapeHtml(existing.price??150)}"></div><div><label>Assigned to</label><select name="assignee">${db.team.map(m=>`<option value="${escapeHtml(m.name)}" ${m.name===(existing.assignee||'Owner')?'selected':''}>${escapeHtml(m.name)}</option>`).join('')}</select></div></div><label>Status</label><select name="status"><option ${!existing.status||existing.status==='Scheduled'?'selected':''}>Scheduled</option><option ${existing.status==='Completed'?'selected':''}>Completed</option></select><button class="full" style="margin-top:16px" type="submit">Save job</button></form>`;
- $('#jobForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target),data=Object.fromEntries(f.entries());data.price=Number(data.price);if(existing.id){db.jobs=db.jobs.map(j=>j.id===existing.id?{...j,...data}:j)}else db.jobs.push({id:crypto.randomUUID(),...data});save();setTab('schedule')}}
+ $('#jobForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target),data=Object.fromEntries(f.entries());data.price=Number(data.price);data.timeZone=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';data.scheduledAt=new Date(`${data.date}T${data.time}`).toISOString();if(existing.id){db.jobs=db.jobs.map(j=>j.id===existing.id?{...j,...data}:j)}else db.jobs.push({id:crypto.randomUUID(),...data});save();setTab('schedule')}}
 function editJob(id){let j=db.jobs.find(j=>j.id===id);if(j)newJob(j)}
 function completeJob(id){db.jobs=db.jobs.map(j=>j.id===id?{...j,status:'Completed'}:j);save();render()}
 function deleteJob(id){if(confirm('Delete this job?')){db.jobs=db.jobs.filter(j=>j.id!==id);save();render()}}

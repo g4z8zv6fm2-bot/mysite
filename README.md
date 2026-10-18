@@ -1,31 +1,49 @@
-# Legendary Cleaners CRM — installable phone web app
+# Legendary Cleaners CRM — GitHub Pages + Supabase shared accounts
 
-## Included
-- Responsive phone-first interface with labeled bottom tabs
-- Job scheduling, edit/delete, assignment, status, and Google Maps directions
-- Customer directory with phone/address and schedule-job shortcut
-- Day, last-7-days, month and all-time revenue totals from completed jobs
-- Local persistence in the browser using localStorage
-- PWA manifest and service worker for install/offline app shell
+## Files
+- `index.html`: CRM with Supabase email/password sign-in, invited employee accounts, shared jobs/customers/team workspace, and live workspace refresh.
+- `supabase-config.js`: set your Supabase Project URL and public anon/publishable key.
+- `supabase-setup.sql`: database schema, row-level security policies, owner bootstrap, and invitation signup trigger.
+- `sw.js`, `manifest.webmanifest`, and icons: installable PWA support.
 
-## Try it
-Open `index.html` in a modern browser for a quick preview. Some PWA installation/offline features require HTTPS or localhost.
+## Deploy in this order
 
-## Install on your phone
-1. Upload the contents of this folder to an HTTPS static host (for example, a static hosting service you control). Keep `index.html`, `manifest.webmanifest`, `sw.js`, and both icon files together.
-2. Open the hosted HTTPS URL on your phone.
-3. iPhone: open the URL in Safari, tap Share, then **Add to Home Screen**.
-4. Android: open the URL in Chrome, tap the menu, then **Install app** or **Add to Home screen**.
-5. Launch it from the new home-screen icon.
+### 1. Create/configure Supabase
+1. Open your Supabase project.
+2. In **Project Settings → API** (or API Keys), copy the **Project URL** and **public anon/publishable key**. Never use a `service_role` or secret key in the website.
+3. Edit `supabase-config.js` and replace the two `YOUR_...` values. Keep the quote marks.
+4. In Supabase **Authentication → Providers**, enable **Email**. Email confirmation can be enabled; employees then need to click the verification link.
 
-## Important limitations
-This version saves records only in the browser/device where you enter them. It is not yet a shared cloud database, has no user authentication, and does not sync across iPhone and Android. Browser data can be lost if you clear site storage. Export/backup and a secure cloud backend should be added before using it as the sole source of business records. Revenue is gross completed-job revenue, not profit. Sample data is not preloaded.
+### 2. Create the owner account and database
+1. In Supabase **Authentication → Users**, check whether your owner email already has an account. If not, use the website's sign-up screen once to create it; if email confirmation is enabled, verify it.
+2. Open `supabase-setup.sql` in a text editor. Replace `REPLACE_WITH_OWNER_EMAIL` with the exact email address you will use as the company owner (lowercase is recommended). There is one occurrence in the function definition; the SQL bootstrap block reads that function.
+3. In Supabase **SQL Editor**, paste the entire edited SQL file and click **Run**.
+4. Refresh the website. The owner profile/company is created for that existing auth user. If you created the owner account only after running SQL, rerun the SQL after replacing the owner email.
 
+### 3. Publish to GitHub Pages
+1. Extract the ZIP.
+2. Upload the **contents** of the `legendary_cleaners_crm` folder to the root of the GitHub repository used for Pages. `index.html` must be at the published root—not inside another nested `legendary_cleaners_crm` folder unless your Pages URL points there.
+3. Commit the changes and wait for GitHub Pages to publish.
+4. Open the published URL, then hard refresh with **Ctrl+Shift+R**. If installed as a PWA, close it and reopen; if needed, remove the old home-screen app and install the updated site again.
 
-## Secure employee accounts (required setup)
+## Invite employee accounts
+1. Sign in with the owner email.
+2. Open **Team** → **Invite an employee login**.
+3. Enter the employee's name, email, and role; choose **Save invitation**.
+4. Give the employee the GitHub Pages URL. They select **New employee? Create an account** and register using the exact email address you invited.
+5. If email confirmation is enabled, they must confirm their email and then sign in.
 
-This version uses **Supabase Auth** for email/password sign-up, sign-in, sign-out, and password-reset emails. Accounts are not implemented by storing plaintext passwords in the app.
+Only invited email addresses are assigned to the company. Other signed-up accounts do not get access to company data. The app uses Supabase Auth, so it does not store account passwords itself.
 
-Before deploying, configure `supabase-config.js` with your Supabase **Project URL** and **public anon key** (Project Settings → API). In Supabase Authentication settings, enable Email sign-in and choose whether email confirmation is required. Do not place a `service_role` key in client-side code. Deploy the app over HTTPS.
+## Shared data
+Jobs, customers, and team records are stored in one Supabase workspace row per company and are shared with invited users. The app also listens for workspace changes while open. This simple shared-workspace approach is suitable for a small team; simultaneous edits from two devices at exactly the same moment can overwrite one another. Make regular backups in Supabase.
 
-Each signed-in account's CRM data is currently stored in that browser/device under a user-specific local-storage key. That isolates the app's local records between accounts on the same browser, but records **do not sync across devices or automatically share between employees**. Shared company-wide jobs/customers/team data needs a cloud database plus access policies and employee membership/invitation rules; this version does not claim that shared-data functionality.
+## Troubleshooting
+- **No login screen / old app appears:** make sure the deployed `index.html` is this version; upload all files, then Ctrl+Shift+R. `sw.js` has a bumped cache name.
+- **“Supabase is not configured”:** edit `supabase-config.js`, save it, and redeploy.
+- **“does not have access”:** owner email in SQL must exactly match the owner login; for an employee, owner must save an invitation before they sign up. If the auth user already existed before an invite was saved, ask them to sign in again after invitation; if still blocked, delete that auth user in Supabase and have them sign up again, or use the invite before creating their account.
+- **Profile/workspace/policy error:** rerun the full SQL setup after checking the owner email replacement, then reload the website.
+- **Email verification link redirects incorrectly:** in Supabase Authentication → URL Configuration, add the GitHub Pages URL (including any repository subpath) to Site URL / Redirect URLs.
+- **Browser still shows old code:** close the installed PWA, open the normal website URL, hard refresh, and confirm the page title/version in `index.html`.
+
+Do not share your Supabase secret/service-role key. The public key belongs in `supabase-config.js`; database access is protected by the SQL RLS policies.

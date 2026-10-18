@@ -148,8 +148,24 @@ console.log(
   const permission=await Notification.requestPermission();if(permission!=='granted'){alert('Notifications are blocked. Allow notifications for this website in your browser site settings.');return}
   const registration=await navigator.serviceWorker.ready;
   let subscription=await registration.pushManager.getSubscription();
-  if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(vapid)});
-  const json=subscription.toJSON();
+if (!subscription) {
+  const applicationServerKey = urlBase64ToUint8Array(vapid);
+
+  console.log("Service worker scope:", registration.scope);
+  console.log("Notification permission:", Notification.permission);
+  console.log("Application server key bytes:", applicationServerKey.length);
+
+  try {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey
+    });
+  } catch (err) {
+    console.error("Push subscription error details:", err);
+    alert("Push subscription failed: " + err.name + ": " + err.message);
+    return;
+  }
+}  const json=subscription.toJSON();
   const {error}=await supabaseClient.from('push_subscriptions').upsert({user_id:currentUser.id,company_id:companyId,endpoint:subscription.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,updated_at:new Date().toISOString()},{onConflict:'endpoint'});
   if(error)throw error;
   localStorage.setItem('lc_job_notifications','on');alert('Push notifications enabled on this device. The server can now send job reminders even when the CRM is closed.');render();

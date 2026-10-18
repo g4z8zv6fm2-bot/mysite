@@ -2,4 +2,4 @@
 // Use the Project URL and the public anon key only. NEVER use a service_role key here.
 window.LC_SUPABASE_URL = "https://uxsndyiyqttnrdeanhli.supabase.co";
 window.LC_SUPABASE_ANON_KEY = "sb_publishable_0DvIQ5Ad37NrIRPqa3KLfw_kguQjXds";
-window.LC_VAPID_PUBLIC_KEY = "BDgYjhNE0eAV4gwZhZGr4ca23cS5dlWEY9cYuOBtUJK6oDuG2B4w8aZ_nzXdCaNFgoZ22SZaQ5t3XQC8oUO49wQ";
+window.LC_VAPID_PUBLIC_KEY = "BISSBV7noZ73Ivyl2dHNdckhDytJv9_A5_ynfm-kX1cfqWXILqcNQsDKUP5qBLarvv22_gQZ5wFpmg8_-zzuc4g";

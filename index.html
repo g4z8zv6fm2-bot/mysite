@@ -185,7 +185,7 @@ async function notifyJobChanges(before,after){
  }
  for(const [id,job] of previous){if(!current.has(id))events.push({title:'Job removed',body:String(job.name||job.customerName||'A cleaning job')+' was removed from the schedule.'})}
  for(const event of events.slice(0,5)){
-  const {error}=await supabaseClient.functions.invoke('send-push-notification',{body:{title:event.title,body:event.body,url:location.pathname}});
+  const {error}=await supabaseClient.functions.invoke('send-push',{body:{title:event.title,body:event.body,url:location.pathname}});
   if(error)console.warn('Push notification was not sent:',error.message);
  }
 }

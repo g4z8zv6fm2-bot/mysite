@@ -40,7 +40,7 @@ nav{position:fixed;bottom:0;left:0;right:0;z-index:5;background:#fff;border-top:
 <script>
 window.addEventListener('error',function(ev){try{const r=document.getElementById('authScreen');if(r&&r.style.display!=='none'&&ev.message){const n=r.querySelector('[role="status"]');if(n)n.textContent='App startup error: '+ev.message+' — refresh the page and check that all files were uploaded together.';}}catch(_){}});
 const $=s=>document.querySelector(s);
-let currentUser=null, authMode="login", supabaseClient=null, companyId=null, accountRole="Employee", workspaceChannel=null, saveTimer=null;
+let currentUser=null, authMode="login", supabaseClient=null, companyId=null, accountRole="Employee", workspaceChannel=null, saveTimer=null, lastSyncedJobs=null;
 const getDbKey=()=>`legendaryCRM_user_${currentUser?.id||"signed-out"}`;
 function localMode(){return !(window.LC_SUPABASE_URL&&window.LC_SUPABASE_ANON_KEY&&!String(window.LC_SUPABASE_URL).includes('YOUR_')&&!String(window.LC_SUPABASE_ANON_KEY).includes('YOUR_'))}
 async function passwordDigest(password){
@@ -64,7 +64,18 @@ function toggleAuthMode(){authMode=authMode==='login'?'signup':'login';showAuth(
 async function resetPassword(){if(localMode()){alert('Password reset is available after connecting Supabase. In local preview mode, create a new account if you forget your password.');return}const email=prompt('Enter the email address for your account:');if(!email)return;try{const {error}=await supabaseClient.auth.resetPasswordForEmail(email.trim().toLowerCase(),{redirectTo:location.origin+location.pathname});if(error)throw error;showAuth('If an account exists for that email, a password reset link has been sent.')}catch(e){showAuth(e.message||'Could not send password reset email.')}}
 function normalizeDb(){if(!db||typeof db!=='object')db={jobs:[],customers:[],team:[],tab:'home'};if(!Array.isArray(db.jobs))db.jobs=[];if(!Array.isArray(db.customers))db.customers=[];if(!Array.isArray(db.team))db.team=[];db.team=db.team.map((m,i)=>typeof m==='string'?{id:'employee-'+i,name:m,role:i===0?'Owner':'Cleaner',phone:'',email:''}:m);if(!db.team.length)db.team=[{id:'owner',name:'Owner',role:'Owner',phone:'',email:''}];if(!db.team.some(m=>m.name==='Owner'&&m.role==='Owner'))db.team.unshift({id:'owner',name:'Owner',role:'Owner',phone:'',email:''});}
 function setSyncStatus(message, bad=false){const el=$('#syncStatus');if(el){el.textContent=message;el.style.color=bad?'#ffd1d1':'#c3d1e3'}}
-async function syncWorkspaceNow(){if(!supabaseClient||!currentUser||!companyId)return;const {error}=await supabaseClient.from('crm_workspaces').upsert({company_id:companyId,data:db,updated_by:currentUser.id,updated_at:new Date().toISOString()},{onConflict:'company_id'});if(error){console.error('Workspace sync failed',error);setSyncStatus('Sync error — check Supabase setup',true)}else setSyncStatus('Synced to cloud')}
+async function syncWorkspaceNow(){
+ if(!supabaseClient||!currentUser||!companyId)return;
+ const before=lastSyncedJobs?JSON.parse(lastSyncedJobs):null;
+ const after=JSON.parse(JSON.stringify(db.jobs||[]));
+ const {error}=await supabaseClient.from('crm_workspaces').upsert({company_id:companyId,data:db,updated_by:currentUser.id,updated_at:new Date().toISOString()},{onConflict:'company_id'});
+ if(error){console.error('Workspace sync failed',error);setSyncStatus('Sync error — check Supabase setup',true)}
+ else{
+  setSyncStatus('Synced to cloud');
+  lastSyncedJobs=JSON.stringify(after);
+  if(before) await notifyJobChanges(before,after);
+ }
+}
 function save(){if(currentUser){try{localStorage.setItem(getDbKey(),JSON.stringify(db))}catch(_){} if(supabaseClient&&companyId){setSyncStatus('Saving…');if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>syncWorkspaceNow(),350)}}}
 async function activateUser(user){
  currentUser=user;
@@ -84,12 +95,12 @@ async function activateUser(user){
    const localHasRecords=localBackup&&((localBackup.jobs||[]).length||(localBackup.customers||[]).length||(localBackup.team||[]).length>1);
    if(accountRole==='Owner'&&cloudEmpty&&localHasRecords){db=localBackup;normalizeDb();await syncWorkspaceNow()}
  }else{db=localBackup||{jobs:[],customers:[],team:[],tab:'home'};normalizeDb();await syncWorkspaceNow()}
- normalizeDb();const email=String(user.email||'').trim().toLowerCase();const fullName=String(profile.full_name||user.user_metadata?.full_name||user.user_metadata?.name||email.split('@')[0]||'Employee').trim();if(email&&!db.team.some(m=>String(m.email||'').trim().toLowerCase()===email)){db.team.push({id:'account-'+String(user.id||email).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80),name:fullName,role:accountRole,phone:'',email});save()}
+ normalizeDb();lastSyncedJobs=JSON.stringify(db.jobs||[]);const email=String(user.email||'').trim().toLowerCase();const fullName=String(profile.full_name||user.user_metadata?.full_name||user.user_metadata?.name||email.split('@')[0]||'Employee').trim();if(email&&!db.team.some(m=>String(m.email||'').trim().toLowerCase()===email)){db.team.push({id:'account-'+String(user.id||email).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80),name:fullName,role:accountRole,phone:'',email});save()}
  localStorage.setItem(getDbKey(),JSON.stringify(db));$('#authScreen').style.display='none';$('#appShell').classList.remove('hidden');$('#accountBar').style.display='block';$('#welcome').textContent='Welcome '+fullName+'.';setSyncStatus('Connected');render();checkUpcomingJobReminders();
  if(workspaceChannel){try{await supabaseClient.removeChannel(workspaceChannel)}catch(_){}}
- workspaceChannel=supabaseClient.channel('lc-workspace-'+companyId).on('postgres_changes',{event:'*',schema:'public',table:'crm_workspaces',filter:'company_id=eq.'+companyId},payload=>{if(payload.new&&payload.new.data&&payload.new.updated_by!==currentUser?.id){db=payload.new.data;normalizeDb();try{localStorage.setItem(getDbKey(),JSON.stringify(db))}catch(_){};setSyncStatus('Updated from cloud');render()}}).subscribe();
+ workspaceChannel=supabaseClient.channel('lc-workspace-'+companyId).on('postgres_changes',{event:'*',schema:'public',table:'crm_workspaces',filter:'company_id=eq.'+companyId},payload=>{if(payload.new&&payload.new.data&&payload.new.updated_by!==currentUser?.id){db=payload.new.data;normalizeDb();lastSyncedJobs=JSON.stringify(db.jobs||[]);try{localStorage.setItem(getDbKey(),JSON.stringify(db))}catch(_){};setSyncStatus('Updated from cloud');render()}}).subscribe();
 }
-async function signOutUser(){if(workspaceChannel&&supabaseClient){await supabaseClient.removeChannel(workspaceChannel);workspaceChannel=null}if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;companyId=null;accountRole='Employee';authMode='login';showAuth('You have been signed out.')}
+async function signOutUser(){if(workspaceChannel&&supabaseClient){await supabaseClient.removeChannel(workspaceChannel);workspaceChannel=null}if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;companyId=null;lastSyncedJobs=null;accountRole='Employee';authMode='login';showAuth('You have been signed out.')}
 async function initAuth(){const url=window.LC_SUPABASE_URL,key=window.LC_SUPABASE_ANON_KEY;if(!url||!key||String(url).includes('YOUR_')||String(key).includes('YOUR_')){showAuth();return}if(!window.supabase){showAuth('Authentication library did not load. Check your internet connection and reload.');return}supabaseClient=window.supabase.createClient(url,key);const {data:{session},error}=await supabaseClient.auth.getSession();if(error){showAuth('Supabase session error: '+error.message);return}if(session?.user){await activateUser(session.user)}else showAuth();supabaseClient.auth.onAuthStateChange(async(event,session)=>{if(event==='SIGNED_IN'&&session?.user&&currentUser?.id!==session.user.id)await activateUser(session.user);if(event==='SIGNED_OUT'&&currentUser){currentUser=null;companyId=null;showAuth('You have been signed out.')}})}
 
 const isoToday=()=>{let d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -129,6 +140,56 @@ function employeeForm(existing={}){
 function editEmployee(id){const m=db.team.find(m=>m.id===id);if(m&&m.role!=='Owner')employeeForm(m);else if(m)employeeForm(m)}
 function deleteEmployee(id){const m=db.team.find(m=>m.id===id);if(!m||m.role==='Owner')return;if(!confirm(`Remove ${m.name} from the team? Existing jobs assigned to this name will keep their assignment text.`))return;db.team=db.team.filter(m=>m.id!==id);save();render()}
 
+// Push subscription management and alerts for shared job changes.
+function vapidKeyBytes(base64String){
+ const padding='='.repeat((4-(base64String.length%4))%4);
+ const raw=atob((base64String+padding).replace(/-/g,'+').replace(/_/g,'/'));
+ return Uint8Array.from(raw,c=>c.charCodeAt(0));
+}
+async function subscribeToPushNotifications(){
+ try{
+  if(!supabaseClient||!currentUser||!companyId){alert('Sign in to the company CRM first.');return}
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){alert('This browser does not support web push notifications. Try a supported browser.');return}
+  const publicKey=window.LC_VAPID_PUBLIC_KEY;
+  if(!publicKey){alert('Push setup is not finished. Check supabase-config.js for the VAPID public key.');return}
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted'){alert('Notifications are blocked. Allow notifications for this website in your browser settings, then try again.');return}
+  const registration=await navigator.serviceWorker.ready;
+  let subscription=await registration.pushManager.getSubscription();
+  if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidKeyBytes(publicKey)});
+  const value=subscription.toJSON();
+  const {error}=await supabaseClient.from('push_subscriptions').upsert({
+   user_id:currentUser.id,company_id:companyId,endpoint:value.endpoint,
+   p256dh:value.keys.p256dh,auth:value.keys.auth,user_agent:navigator.userAgent,
+   updated_at:new Date().toISOString()
+  },{onConflict:'endpoint'});
+  if(error)throw error;
+  localStorage.setItem('lc_push_enabled','on');
+  alert('Push notifications are enabled on this device. Enable them separately on each device.');
+  render();
+ }catch(error){console.error('Push subscription failed:',error);alert('Could not enable push notifications: '+(error.message||'Check the push setup and Supabase database.'))}
+}
+async function notifyJobChanges(before,after){
+ const previous=new Map((before||[]).map(j=>[String(j.id||j.jobId||''),j]));
+ const current=new Map((after||[]).map(j=>[String(j.id||j.jobId||''),j]));
+ const events=[];
+ for(const [id,job] of current){
+  const old=previous.get(id);
+  const name=String(job.name||job.customerName||job.customer||'Cleaning job');
+  const when=[job.date,job.time].filter(Boolean).join(' at ');
+  if(!old){events.push({title:'New cleaning job',body:name+(when?' — '+when:'')+(job.assignee?' · Assigned to '+job.assignee:'')})}
+  else if(['name','address','date','time','assignee','status','price'].some(k=>String(old[k]??'')!==String(job[k]??''))){
+   const title=old.status!=='Completed'&&job.status==='Completed'?'Job completed':'Job updated';
+   events.push({title,body:name+(when?' — '+when:'')+(job.status?' · '+job.status:'')});
+  }
+ }
+ for(const [id,job] of previous){if(!current.has(id))events.push({title:'Job removed',body:String(job.name||job.customerName||'A cleaning job')+' was removed from the schedule.'})}
+ for(const event of events.slice(0,5)){
+  const {error}=await supabaseClient.functions.invoke('send-push-notification',{body:{title:event.title,body:event.body,url:location.pathname}});
+  if(error)console.warn('Push notification was not sent:',error.message);
+ }
+}
+
 // Upcoming-job reminders: checks scheduled jobs every 60 seconds while the app is open.
 function requestJobNotificationPermission(){
  if(!('Notification' in window)){alert('This browser does not support desktop notifications.');return}
@@ -153,7 +214,8 @@ function checkUpcomingJobReminders(){
  });
 }
 function renderJobReminderSettings(){
- return `<div class="card"><h3>Job reminders</h3><p class="muted">Get a browser notification about a scheduled job approximately one hour before it starts.</p><div class="row"><span>Browser permission</span><b>${('Notification' in window)?Notification.permission:'Not supported'}</b></div><button onclick="requestJobNotificationPermission()">Enable job notifications</button><p class="muted" style="margin-top:10px">Reminders run while this app is open. Your browser must allow notifications.</p></div>`;
+ const permission=('Notification' in window)?Notification.permission:'Not supported';
+ return `<div class="card"><h3>Push notifications</h3><p class="muted">Get alerts for new jobs and job changes, even when the CRM is not open, after push setup is completed.</p><div class="row"><span>Browser permission</span><b>${escapeHtml(permission)}</b></div><button onclick="subscribeToPushNotifications()">Enable push notifications on this device</button><p class="muted" style="margin-top:10px">Enable this separately on every phone or computer where you want alerts.</p><hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><h3>One-hour job reminders</h3><p class="muted">These local reminders run while this app is open.</p><button class="secondary" onclick="requestJobNotificationPermission()">Enable one-hour reminders</button></div>`;
 }
 setInterval(checkUpcomingJobReminders,60000);
 

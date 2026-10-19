@@ -160,7 +160,7 @@ async function subscribeToPushNotifications(){
   const value=subscription.toJSON();
   const {error}=await supabaseClient.from('push_subscriptions').upsert({
    user_id:currentUser.id,company_id:companyId,endpoint:value.endpoint,
-   p256dh:value.keys.p256dh,auth:value.keys.auth,user_agent:navigator.userAgent,
+   p256dh:value.keys.p256dh,auth:value.keys.auth,
    updated_at:new Date().toISOString()
   },{onConflict:'endpoint'});
   if(error)throw error;

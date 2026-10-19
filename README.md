@@ -47,3 +47,16 @@ Jobs, customers, and team records are stored in one Supabase workspace row per c
 - **Browser still shows old code:** close the installed PWA, open the normal website URL, hard refresh, and confirm the page title/version in `index.html`.
 
 Do not share your Supabase secret/service-role key. The public key belongs in `supabase-config.js`; database access is protected by the SQL RLS policies.
+
+
+## Push notifications (new jobs and job changes)
+
+The CRM supports subscribing each employee's device to Web Push. Finish these steps before using the **Enable push notifications on this device** button:
+
+1. In Supabase SQL Editor, run the updated `supabase-setup.sql` again. It adds the `push_subscriptions` table and its row-level security policy.
+2. The VAPID public key is configured in `supabase-config.js`. The public key may be in the website; never put the VAPID private key or Supabase service-role key in GitHub.
+3. In Supabase Dashboard → Edge Functions, create a function named `send-push-notification` and deploy the source from `supabase/functions/send-push-notification/index.ts`.
+4. Configure these Edge Function secrets in Supabase: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` (for example, a `mailto:` contact). Keep private and service-role keys in Supabase secrets only.
+5. Redeploy GitHub Pages and hard-refresh it. Sign in on each device, open Team, and click **Enable push notifications on this device**. Allow browser notifications when prompted.
+
+The Edge Function sends job-change notifications to other subscribed devices in the same company. The existing one-hour reminders still require the CRM page to remain open. Push support depends on the browser and device allowing notifications; iOS typically requires the web app to be installed on the Home Screen.

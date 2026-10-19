@@ -68,9 +68,12 @@ async function syncWorkspaceNow(){if(!supabaseClient||!currentUser||!companyId)r
 function save(){if(currentUser){try{localStorage.setItem(getDbKey(),JSON.stringify(db))}catch(_){} if(supabaseClient&&companyId){setSyncStatus('Saving…');if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(()=>syncWorkspaceNow(),350)}}}
 async function activateUser(user){
  currentUser=user;
- const {data:profile,error:profileError}=await supabaseClient.from('profiles').select('company_id,role,full_name').eq('user_id',user.id).maybeSingle();
+ let {data:profile,error:profileError}=await supabaseClient.from('profiles').select('company_id,role,full_name').eq('user_id',user.id).maybeSingle();
  if(profileError){currentUser=null;await supabaseClient.auth.signOut();showAuth('Could not load your employee profile: '+profileError.message+' Check that you ran supabase-setup.sql.');return}
- if(!profile||!profile.company_id){currentUser=null;await supabaseClient.auth.signOut();showAuth('This email does not have access to Legendary Cleaners yet. Ask the owner to add your email in Team, then create your account using that exact email.');return}
+ // Recover accounts created before the owner saved the invitation: securely claim a matching invite.
+ if(!profile){const {error:claimError}=await supabaseClient.rpc('claim_my_crm_invite');if(claimError){console.error('Invite claim failed:',claimError.message)}else{const result=await supabaseClient.from('profiles').select('company_id,role,full_name').eq('user_id',user.id).maybeSingle();profile=result.data;profileError=result.error}}
+ if(profileError){currentUser=null;await supabaseClient.auth.signOut();showAuth('Could not load your employee profile: '+profileError.message+' Check that you ran supabase-setup.sql.');return}
+ if(!profile||!profile.company_id){currentUser=null;await supabaseClient.auth.signOut();showAuth('This email does not have access to Legendary Cleaners yet. Ask the owner to save your email in Team first, then sign in again. If you just created your account, make sure your email is verified.');return}
  companyId=profile.company_id;accountRole=profile.role||'Employee';
  const {data:workspace,error:workspaceError}=await supabaseClient.from('crm_workspaces').select('data').eq('company_id',companyId).maybeSingle();
  if(workspaceError){currentUser=null;companyId=null;await supabaseClient.auth.signOut();showAuth('Could not load shared company data: '+workspaceError.message+' Check the database policies in supabase-setup.sql.');return}

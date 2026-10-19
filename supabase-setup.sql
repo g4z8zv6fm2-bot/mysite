@@ -83,6 +83,33 @@ drop trigger if exists on_auth_user_created_crm on auth.users;
 create trigger on_auth_user_created_crm after insert on auth.users
 for each row execute function public.handle_new_crm_user();
 
+-- Allow an authenticated user to claim only an invitation matching their own verified Auth email.
+-- This also repairs accounts that were created before the owner saved the invitation.
+create or replace function public.claim_my_crm_invite() returns boolean
+language plpgsql security definer set search_path = public, auth
+as $
+declare
+  v_user uuid := auth.uid();
+  v_email text;
+  v_invite public.employee_invites%rowtype;
+begin
+  if v_user is null then return false; end if;
+  select lower(email) into v_email from auth.users where id = v_user;
+  if v_email is null then return false; end if;
+  if exists(select 1 from public.profiles where user_id = v_user) then return true; end if;
+  select * into v_invite from public.employee_invites
+    where lower(email) = v_email order by created_at asc limit 1;
+  if not found then return false; end if;
+  insert into public.profiles(user_id, company_id, email, full_name, role)
+    values(v_user, v_invite.company_id, v_email, v_invite.full_name, v_invite.role)
+    on conflict(user_id) do nothing;
+  delete from public.employee_invites where id = v_invite.id;
+  return true;
+end;
+$;
+revoke all on function public.claim_my_crm_invite() from public;
+grant execute on function public.claim_my_crm_invite() to authenticated;
+
 -- If the owner account already exists in Supabase Auth, attach it to a company now.
 do $$
 declare v_owner uuid; v_company uuid; v_email text := public.crm_owner_email(); v_name text;

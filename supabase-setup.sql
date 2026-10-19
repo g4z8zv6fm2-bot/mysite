@@ -195,3 +195,23 @@ grant insert, update on public.crm_workspaces to authenticated;
 
 -- End setup. In Supabase Auth settings, enable Email provider. For public signup,
 -- consider requiring email confirmation. Uninvited signups won't receive a company profile.
+
+
+-- Web Push subscriptions: each signed-in user can manage only their own device endpoints.
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  company_id uuid not null references public.crm_companies(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  user_agent text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "users manage own push subscriptions" on public.push_subscriptions;
+create policy "users manage own push subscriptions" on public.push_subscriptions
+for all to authenticated
+using (user_id = auth.uid() and company_id = public.current_company_id())
+with check (user_id = auth.uid() and company_id = public.current_company_id());

@@ -216,7 +216,7 @@ async function notifyJobChanges(before,after){
   const {data,error}=await supabaseClient.functions.invoke('send-push-notification',{body:{title:event.title,body:event.body,url:location.pathname}});
   if(error){let detail=String(error.message||'Request failed');try{const response=error.context;if(response&&typeof response.clone==='function'){const payload=await response.clone().json();if(payload?.error)detail=String(payload.error)}}catch{}console.error('Push notification was not sent:',error);setSyncStatus('Job saved; push failed: '+detail.slice(0,110),true)}
   else if(data?.error){console.error('Push notification was not sent:',data.error);setSyncStatus('Job saved; push failed: '+String(data.error).slice(0,90),true)}
-  else if(Number(data?.sent||0)===0){console.warn('Push function ran but delivered to zero devices. Check device subscription and VAPID settings.',data);setSyncStatus('Job saved; no push devices received it',true)}
+  else if(Number(data?.sent||0)===0){console.warn('Push function ran but delivered to zero devices. Check device subscription and VAPID settings.',data);const diagnostic=Number(data?.subscriptionsFound||0)===0?'No iPhone subscriptions found for this company':'Found '+Number(data?.subscriptionsFound||0)+' subscription(s), but all deliveries failed';setSyncStatus('Job saved; '+diagnostic,true)}
   else{setSyncStatus('Job saved; push sent to '+data.sent+' device(s)')}
  }
 }

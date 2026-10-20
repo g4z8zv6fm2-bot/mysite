@@ -44,8 +44,7 @@ Deno.serve(async (req) => {
     const url = String(input.url || "/");
     const subscriptionsQuery = admin.from("push_subscriptions")
       .select("id,user_id,endpoint,p256dh,auth")
-      .eq("company_id", profile.company_id)
-      .neq("user_id", authData.user.id);
+      .eq("company_id", profile.company_id);
     const { data: subscriptions, error: subscriptionsError } = await subscriptionsQuery;
     if (subscriptionsError) return json({ error: "Could not load notification subscriptions." }, 500);
 

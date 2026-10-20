@@ -62,12 +62,14 @@ Deno.serve(async (req) => {
           await admin.from("push_subscriptions").delete().eq("id", sub.id);
         }
         console.error("Push delivery failed:", status || error?.message || "unknown error");
-        return { ok: false, status };
+        const detail = String(error?.body || error?.message || "unknown push error").replace(/[\\r\\n]+/g, " ").slice(0, 180);
+        return { ok: false, status, detail };
       }
     }));
     const failures = outcomes.filter(x => !x.ok);
     const failureCodes = [...new Set(failures.map(x => x.status || "network/unknown"))].join(",");
-    return json({ subscriptionsFound: (subscriptions || []).length, sent: outcomes.filter(x => x.ok).length, failed: failures.length, failureCodes });
+    const failureDetails = [...new Set(failures.map(x => `${x.status || "network/unknown"}: ${x.detail || "no details"}`))].join(" | ").slice(0, 500);
+    return json({ subscriptionsFound: (subscriptions || []).length, sent: outcomes.filter(x => x.ok).length, failed: failures.length, failureCodes, failureDetails });
   } catch (error) {
     console.error("Push handler error:", error?.message || error);
     return json({ error: "Push notification request failed." }, 500);

@@ -1,0 +1,39 @@
+name: Send one-hour job reminders
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-hour-job-reminders
+  cancel-in-progress: false
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check reminder service configuration
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Add the GitHub Actions repository secret SUPABASE_SERVICE_ROLE_KEY using the service-role key from your Supabase project."
+            exit 1
+          fi
+
+      - name: Check upcoming jobs and send reminders
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          curl --fail-with-body --silent --show-error --retry 2 --retry-delay 2 \
+            --request POST \
+            --url "https://uxsndyiyqttnrdeanhli.supabase.co/functions/v1/send-job-reminders" \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{}'

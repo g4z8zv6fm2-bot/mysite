@@ -22,7 +22,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "::error::Add the GitHub Actions repository secret SUPABASE_SERVICE_ROLE_KEY using the service-role key from your Supabase project."
+            echo "::error::Add the GitHub repository secret SUPABASE_SERVICE_ROLE_KEY."
             exit 1
           fi
 
@@ -35,5 +35,6 @@ jobs:
             --url "https://uxsndyiyqttnrdeanhli.supabase.co/functions/v1/send-job-reminders" \
             --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "x-cron-secret: $SUPABASE_SERVICE_ROLE_KEY" \
             --header "Content-Type: application/json" \
             --data '{}'

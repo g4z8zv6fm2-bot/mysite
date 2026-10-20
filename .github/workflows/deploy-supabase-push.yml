@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "supabase/functions/send-push-notification/**"
+      - "supabase/functions/send-push-notification/**",
+      - "supabase/functions/send-job-reminders/**"
       - ".github/workflows/deploy-supabase-push.yml"
   workflow_dispatch:
 
@@ -29,3 +30,4 @@ jobs:
             exit 1
           fi
           supabase functions deploy send-push-notification --project-ref uxsndyiyqttnrdeanhli
+          supabase functions deploy send-job-reminders --project-ref uxsndyiyqttnrdeanhli

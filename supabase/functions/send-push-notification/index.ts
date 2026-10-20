@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
         return { ok: false };
       }
     }));
-    return json({ sent: outcomes.filter(x => x.ok).length, failed: outcomes.filter(x => !x.ok).length });
+    return json({ subscriptionsFound: (subscriptions || []).length, sent: outcomes.filter(x => x.ok).length, failed: outcomes.filter(x => !x.ok).length });
   } catch (error) {
     console.error("Push handler error:", error?.message || error);
     return json({ error: "Push notification request failed." }, 500);

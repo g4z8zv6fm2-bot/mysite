@@ -164,7 +164,15 @@ async function subscribeToPushNotifications(){
   show('Connecting this device to push notifications…');
   const registration=await navigator.serviceWorker.ready;
   let subscription=await registration.pushManager.getSubscription();
-  if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidKeyBytes(publicKey)});
+  if(subscription){
+   const oldEndpoint=subscription.endpoint;
+   show('Refreshing this device’s push subscription…');
+   const {error:deleteError}=await supabaseClient.from('push_subscriptions').delete().eq('endpoint',oldEndpoint);
+   if(deleteError)console.warn('Could not remove old push subscription record:',deleteError.message);
+   await subscription.unsubscribe();
+   subscription=null;
+  }
+  subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidKeyBytes(publicKey)});
   const value=subscription.toJSON();
   if(!value.keys||!value.keys.p256dh||!value.keys.auth)throw new Error('The browser created an incomplete push subscription. Close and reopen the Home Screen app, then try again.');
   const {error}=await supabaseClient.from('push_subscriptions').upsert({

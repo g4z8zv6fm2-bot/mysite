@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -14,17 +14,22 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const cronSecret = Deno.env.get("REMINDER_CRON_SECRET");
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
     const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:admin@example.com";
     const timeZone = Deno.env.get("BUSINESS_TIME_ZONE") || "America/New_York";
-    if (!supabaseUrl || !serviceRoleKey || !vapidPublicKey || !vapidPrivateKey) {
+    if (!supabaseUrl || !serviceRoleKey || !cronSecret || !vapidPublicKey || !vapidPrivateKey) {
       return json({ error: "Reminder server secrets are not configured." }, 500);
     }
 
-    // This endpoint is called only by the scheduled GitHub Actions workflow.
-    const auth = req.headers.get("Authorization") || "";
-    if (auth !== `Bearer ${serviceRoleKey}`) return json({ error: "Unauthorized." }, 401);
+    // Supabase's gateway JWT check is disabled for this function; this dedicated
+    // shared secret protects the scheduled endpoint before privileged DB access.
+    const suppliedSecret = req.headers.get("x-cron-secret") || "";
+    if (suppliedSecret.length !== cronSecret.length ||
+        !crypto.subtle || suppliedSecret !== cronSecret) {
+      return json({ error: "Unauthorized." }, 401);
+    }
 
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -50,7 +55,7 @@ Deno.serve(async (req) => {
         const date = String(job.date || job.scheduledDate || "").trim();
         const time = String(job.time || job.startTime || "").trim();
         const jobId = String(job.id || job.jobId || "").trim();
-        if (!date || !time || !jobId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) continue;
+        if (!date || !time || !jobId || !/^\\d{4}-\\d{2}-\\d{2}$/.test(date) || !/^\\d{2}:\\d{2}$/.test(time)) continue;
         const startsAt = localTimeToUtc(date, time, timeZone);
         if (!startsAt) continue;
         const minutesUntil = (startsAt.getTime() - now) / 60000;

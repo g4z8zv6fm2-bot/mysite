@@ -55,17 +55,19 @@ Deno.serve(async (req) => {
           endpoint: sub.endpoint,
           keys: { p256dh: sub.p256dh, auth: sub.auth },
         }, JSON.stringify({ title, body, url }));
-        return { ok: true };
+        return { ok: true, status: 0 };
       } catch (error) {
         const status = Number(error?.statusCode || error?.status || 0);
         if (status === 404 || status === 410) {
           await admin.from("push_subscriptions").delete().eq("id", sub.id);
         }
         console.error("Push delivery failed:", status || error?.message || "unknown error");
-        return { ok: false };
+        return { ok: false, status };
       }
     }));
-    return json({ subscriptionsFound: (subscriptions || []).length, sent: outcomes.filter(x => x.ok).length, failed: outcomes.filter(x => !x.ok).length });
+    const failures = outcomes.filter(x => !x.ok);
+    const failureCodes = [...new Set(failures.map(x => x.status || "network/unknown"))].join(",");
+    return json({ subscriptionsFound: (subscriptions || []).length, sent: outcomes.filter(x => x.ok).length, failed: failures.length, failureCodes });
   } catch (error) {
     console.error("Push handler error:", error?.message || error);
     return json({ error: "Push notification request failed." }, 500);

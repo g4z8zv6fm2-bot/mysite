@@ -42,9 +42,26 @@ jobs:
         run: |
           supabase secrets set "REMINDER_CRON_SECRET=$REMINDER_CRON_SECRET" --project-ref uxsndyiyqttnrdeanhli
 
-      - name: Deploy push notification function
+      - name: Deploy push notification functions (retry transient registry/network errors)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
         run: |
-          supabase functions deploy send-push-notification --project-ref uxsndyiyqttnrdeanhli --no-verify-jwt
-          supabase functions deploy send-job-reminders --project-ref uxsndyiyqttnrdeanhli --no-verify-jwt
+          set -euo pipefail
+          deploy_with_retry() {
+            local function_name="$1"
+            local attempt
+            for attempt in 1 2 3 4; do
+              echo "Deploying $function_name (attempt $attempt/4)"
+              if supabase functions deploy "$function_name" --project-ref uxsndyiyqttnrdeanhli --no-verify-jwt; then
+                return 0
+              fi
+              if [ "$attempt" -lt 4 ]; then
+                sleep $((attempt * 15))
+              fi
+            done
+            echo "::error::Deployment of $function_name failed after 4 attempts."
+            return 1
+          }
+          deploy_with_retry send-push-notification
+          deploy_with_retry send-job-reminders

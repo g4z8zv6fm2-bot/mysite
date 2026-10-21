@@ -35,7 +35,7 @@ jobs:
         run: |
           curl --fail-with-body --silent --show-error --retry 2 --retry-delay 2 \
             --request POST \
-            --url "https://uxsndyiyqttnrdeanhli.supabase.co/functions/v1/send-job-reminders" \
+            --url "https://uxsndyiyqttnrdeanhli.supabase.co/functions/v1/send-push-notification" \
             --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             --header "x-cron-secret: $SUPABASE_SERVICE_ROLE_KEY" \

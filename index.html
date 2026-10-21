@@ -45,14 +45,9 @@ body.drawer-open .drawer-backdrop{opacity:1;visibility:visible}body.drawer-open 
 <div id="drawerBackdrop" class="drawer-backdrop" onclick="toggleDashboardMenu(false)" aria-hidden="true"></div>
 <aside id="dashboardDrawer" class="dashboard-drawer" aria-label="Dashboard navigation" aria-hidden="true">
 <div class="drawer-top"><div><strong>LEGENDARY CLEANERS</strong><small>BUSINESS DASHBOARD</small></div><button class="drawer-close" onclick="toggleDashboardMenu(false)" aria-label="Close dashboard menu">✕</button></div>
-<div class="drawer-label">Workspace</div>
-<button class="drawer-link active" data-drawer-tab="home"><span class="ico">⌂</span>Home dashboard</button>
-<button class="drawer-link" data-drawer-tab="schedule"><span class="ico">▦</span>Schedule</button>
-<button class="drawer-link" data-drawer-tab="customers"><span class="ico">♙</span>Customers</button>
-<button class="drawer-link" data-drawer-tab="team"><span class="ico">♧</span>Team</button>
-<button class="drawer-link" data-drawer-tab="revenue"><span class="ico">＄</span>Revenue</button>
 <div class="drawer-label">Preferences</div>
 <button class="drawer-link" data-drawer-tab="settings"><span class="ico">⚙</span>Settings &amp; notifications</button>
+<p class="muted" style="font-size:12px;line-height:1.5;padding:0 12px">Manage push alerts and job reminders here.</p>
 </aside>
 <nav id="nav">
 <button data-tab="home" class="active"><span class="ico">⌂</span>Home</button>
@@ -60,7 +55,6 @@ body.drawer-open .drawer-backdrop{opacity:1;visibility:visible}body.drawer-open 
 <button data-tab="customers"><span class="ico">♙</span>Customers</button>
 <button data-tab="team"><span class="ico">♧</span>Team</button>
 <button data-tab="revenue"><span class="ico">＄</span>Revenue</button>
-<button data-tab="settings"><span class="ico">⚙</span>Settings</button>
 </nav>
 <div id="accountBar" style="position:fixed;right:10px;top:10px;z-index:8;display:none;align-items:center;gap:8px"><span id="syncStatus" style="font-size:11px;color:#c3d1e3;background:#101d32;padding:5px 7px;border-radius:8px">Connected</span><button class="secondary small" onclick="signOutUser()">Sign out</button></div>
 </div>

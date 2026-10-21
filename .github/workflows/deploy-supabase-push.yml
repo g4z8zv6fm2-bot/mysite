@@ -46,5 +46,5 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase functions deploy send-push-notification --project-ref uxsndyiyqttnrdeanhli
+          supabase functions deploy send-push-notification --project-ref uxsndyiyqttnrdeanhli --no-verify-jwt
           supabase functions deploy send-job-reminders --project-ref uxsndyiyqttnrdeanhli --no-verify-jwt

@@ -19,13 +19,41 @@ label{display:block;font-size:12px;font-weight:650;margin:10px 0 5px;color:#3544
 nav{position:fixed;bottom:0;left:0;right:0;z-index:5;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:7px 3px calc(7px + env(safe-area-inset-bottom));box-shadow:0 -5px 20px #10213a0b}nav button{background:transparent;color:#68768a;border-radius:12px;flex:1;display:flex;flex-direction:column;gap:4px;padding:7px 1px;font-size:10px;font-weight:600}nav button.active{background:#edf3ff;color:var(--blue)}nav .ico{font-size:19px;line-height:20px}
 .notice{background:#fff8e7;border:1px solid #f2dfad;border-radius:12px;padding:12px;font-size:12px;color:#70551b;line-height:1.45}.toolbar{display:flex;gap:8px;align-items:center}.toolbar input{flex:1}.revenuebig{background:var(--navy);color:white;border-radius:17px;padding:20px}.revenuebig small{color:#c3d1e3}.revenuebig strong{display:block;font-size:32px;margin:8px 0}.row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}
 @media(min-width:650px){main{padding:22px}.grid{grid-template-columns:repeat(4,minmax(0,1fr))}header{padding-left:max(22px,calc((100vw - 720px)/2));padding-right:max(22px,calc((100vw - 720px)/2))}}
+
+/* Slide-out dashboard navigation */
+.header-row{display:flex;align-items:center;gap:12px}.header-row .brand{min-width:0}
+.menu-toggle{width:42px;height:42px;flex:0 0 42px;padding:0;border:1px solid #ffffff35;background:#ffffff12;color:#fff;border-radius:13px;font-size:22px;display:grid;place-items:center}
+.drawer-backdrop{position:fixed;inset:0;background:#07142680;z-index:20;opacity:0;visibility:hidden;transition:opacity .22s,visibility .22s}
+.dashboard-drawer{position:fixed;z-index:21;left:0;top:0;bottom:0;width:min(320px,86vw);background:#fff;box-shadow:12px 0 40px #07142630;transform:translateX(-105%);transition:transform .24s ease;padding:calc(18px + env(safe-area-inset-top)) 15px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;overflow:auto}
+body.drawer-open .drawer-backdrop{opacity:1;visibility:visible}body.drawer-open .dashboard-drawer{transform:translateX(0)}
+.drawer-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 4px 18px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.drawer-top strong{font-size:13px;letter-spacing:.04em}.drawer-top small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
+.drawer-close{background:#edf2fa;color:#27364b;padding:8px 12px;border-radius:10px}
+.dashboard-drawer .drawer-link{display:flex;align-items:center;gap:12px;text-align:left;width:100%;background:transparent;color:#27364b;border-radius:12px;padding:13px 12px;font-size:14px;font-weight:650}
+.dashboard-drawer .drawer-link .ico{font-size:20px;width:25px;text-align:center;color:var(--blue)}
+.dashboard-drawer .drawer-link.active{background:#edf3ff;color:var(--blue)}
+.drawer-label{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);font-weight:800;padding:12px 12px 4px}
+@media(min-width:650px){.dashboard-drawer{width:330px}}
+
 </style>
 </head>
 <body>
 <div id="authScreen" style="display:block"><main><div class="card" style="margin-top:7vh"><div class="brand"><div class="logo" role="img" aria-label="Legendary Cleaners logo"><svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20 4C16 11 9 18 9 25a11 11 0 0 0 22 0C31 18 24 11 20 4Z" fill="currentColor"/><path d="M14 25c0 3 2 5 5 6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><path d="M29 5v7M25.5 8.5h7" stroke="#1769aa" stroke-width="2" stroke-linecap="round"/></svg></div><div><strong>LEGENDARY CLEANERS</strong><small>BUSINESS COMMAND CENTER</small></div></div><h2 style="margin-top:22px">Sign in to your account</h2><p class="muted">Version 2 · Employee accounts</p><p class="notice" role="status">Sign in with your email and password, or create an employee account below. If this page never changes after you submit, check the browser console for a JavaScript error.</p><form id="authForm"><label>Email address</label><input name="email" type="email" autocomplete="email" required placeholder="you@example.com"><label>Password</label><input name="password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters"><button class="full" style="margin-top:16px" type="submit">Sign in</button></form><button class="secondary full" style="margin-top:10px" type="button" onclick="toggleAuthMode()">New employee? Create an account</button></div></main></div>
 <div id="appShell" class="hidden">
-<header><div class="brand"><div class="logo" role="img" aria-label="Legendary Cleaners logo"><svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20 4C16 11 9 18 9 25a11 11 0 0 0 22 0C31 18 24 11 20 4Z" fill="currentColor"/><path d="M14 25c0 3 2 5 5 6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><path d="M29 5v7M25.5 8.5h7" stroke="#1769aa" stroke-width="2" stroke-linecap="round"/></svg></div><div><strong>LEGENDARY CLEANERS</strong><small>BUSINESS COMMAND CENTER</small></div></div><h1 id="welcome">Your business at a glance.</h1><p id="todayLabel"></p></header>
+<header><div class="header-row"><button id="menuToggle" class="menu-toggle" aria-label="Open dashboard menu" aria-expanded="false" onclick="toggleDashboardMenu(true)">☰</button><div class="brand"><div class="logo" role="img" aria-label="Legendary Cleaners logo"><svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20 4C16 11 9 18 9 25a11 11 0 0 0 22 0C31 18 24 11 20 4Z" fill="currentColor"/><path d="M14 25c0 3 2 5 5 6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><path d="M29 5v7M25.5 8.5h7" stroke="#1769aa" stroke-width="2" stroke-linecap="round"/></svg></div><div><strong>LEGENDARY CLEANERS</strong><small>BUSINESS COMMAND CENTER</small></div></div></div><h1 id="welcome">Your business at a glance.</h1><p id="todayLabel"></p></header>
 <main id="app"></main>
+<div id="drawerBackdrop" class="drawer-backdrop" onclick="toggleDashboardMenu(false)" aria-hidden="true"></div>
+<aside id="dashboardDrawer" class="dashboard-drawer" aria-label="Dashboard navigation" aria-hidden="true">
+<div class="drawer-top"><div><strong>LEGENDARY CLEANERS</strong><small>BUSINESS DASHBOARD</small></div><button class="drawer-close" onclick="toggleDashboardMenu(false)" aria-label="Close dashboard menu">✕</button></div>
+<div class="drawer-label">Workspace</div>
+<button class="drawer-link active" data-drawer-tab="home"><span class="ico">⌂</span>Home dashboard</button>
+<button class="drawer-link" data-drawer-tab="schedule"><span class="ico">▦</span>Schedule</button>
+<button class="drawer-link" data-drawer-tab="customers"><span class="ico">♙</span>Customers</button>
+<button class="drawer-link" data-drawer-tab="team"><span class="ico">♧</span>Team</button>
+<button class="drawer-link" data-drawer-tab="revenue"><span class="ico">＄</span>Revenue</button>
+<div class="drawer-label">Preferences</div>
+<button class="drawer-link" data-drawer-tab="settings"><span class="ico">⚙</span>Settings &amp; notifications</button>
+</aside>
 <nav id="nav">
 <button data-tab="home" class="active"><span class="ico">⌂</span>Home</button>
 <button data-tab="schedule"><span class="ico">▦</span>Schedule</button>
@@ -288,7 +316,11 @@ function deleteJob(id){if(confirm('Delete this job?')){db.jobs=db.jobs.filter(j=
 function customerForm(existing={}){$('#app').innerHTML=`<div class="topline"><h2>New customer</h2><button class="secondary" onclick="setTab('customers')">Cancel</button></div><form class="card" id="customerForm"><label>Full name</label><input name="name" required value="${escapeHtml(existing.name||'')}"><label>Phone number</label><input name="phone" type="tel" value="${escapeHtml(existing.phone||'')}"><label>Service address</label><input name="address" required value="${escapeHtml(existing.address||'')}"><button class="full" style="margin-top:16px">Save customer</button></form>`;$('#customerForm').onsubmit=e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.target));db.customers.push({id:crypto.randomUUID(),...d});save();setTab('customers')}}
 function deleteCustomer(id){if(confirm('Delete this customer?')){db.customers=db.customers.filter(c=>c.id!==id);save();render()}}
 function newJobFor(id){let c=db.customers.find(c=>c.id===id);newJob(c?{name:c.name,address:c.address}: {})}
-document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{search='';setTab(b.dataset.tab)}));
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{search='';setTab(b.dataset.tab);document.querySelectorAll('[data-drawer-tab]').forEach(x=>x.classList.toggle('active',x.dataset.drawerTab===b.dataset.tab))}));
+function toggleDashboardMenu(open){document.body.classList.toggle('drawer-open',!!open);const d=document.getElementById('dashboardDrawer'),b=document.getElementById('menuToggle');if(d)d.setAttribute('aria-hidden',String(!open));if(b)b.setAttribute('aria-expanded',String(!!open))}
+document.querySelectorAll('[data-drawer-tab]').forEach(b=>b.addEventListener('click',()=>{search='';setTab(b.dataset.drawerTab);document.querySelectorAll('[data-drawer-tab]').forEach(x=>x.classList.toggle('active',x.dataset.drawerTab===b.dataset.drawerTab));toggleDashboardMenu(false)}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleDashboardMenu(false)});
+
 $('#todayLabel').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 initAuth().catch(e=>showAuth(e.message||'Could not initialize secure sign-in.'));

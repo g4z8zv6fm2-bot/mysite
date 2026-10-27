@@ -6,6 +6,8 @@ on:
     paths:
       - "supabase/functions/send-push-notification/**"
       - "supabase/functions/send-job-reminders/**"
+      - "supabase/functions/contract-scheduling-assistant/**"
+      - "supabase/migrations/**"
       - ".github/workflows/deploy-supabase-push.yml"
   workflow_dispatch:
 
@@ -65,3 +67,4 @@ jobs:
           }
           deploy_with_retry send-push-notification
           deploy_with_retry send-job-reminders
+          deploy_with_retry contract-scheduling-assistant

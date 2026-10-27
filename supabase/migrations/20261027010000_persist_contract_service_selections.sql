@@ -29,7 +29,7 @@ begin
 
   select coalesce(array_agg(distinct service), '{}')
   into v_services
-  from unnest(coalesce(p_selected_services, '{}')) as service
+  from unnest(coalesce(p_selected_services, '{}')) as u(service)
   where service in (
     'Exterior Window Cleaning',
     'Interior Window Cleaning',

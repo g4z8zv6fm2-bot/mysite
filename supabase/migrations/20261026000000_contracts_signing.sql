@@ -33,11 +33,11 @@ create policy "company members read contracts" on public.crm_contracts for selec
 using (exists(select 1 from public.profiles p where p.user_id=auth.uid() and p.company_id=crm_contracts.company_id));
 drop policy if exists "company members create contracts" on public.crm_contracts;
 create policy "company members create contracts" on public.crm_contracts for insert to authenticated
-with check (created_by=auth.uid() and exists(select 1 from public.profiles p where p.user_id=auth.uid() and p.company_id=crm_contracts.company_id));
+with check (created_by=auth.uid() and status in ('draft','sent') and (status <> 'sent' or token_hash is not null) and exists(select 1 from public.profiles p where p.user_id=auth.uid() and p.company_id=crm_contracts.company_id));
 drop policy if exists "company members update contracts" on public.crm_contracts;
 create policy "company members update contracts" on public.crm_contracts for update to authenticated
-using (exists(select 1 from public.profiles p where p.user_id=auth.uid() and p.company_id=crm_contracts.company_id))
-with check (exists(select 1 from public.profiles p where p.user_id=auth.uid() and p.company_id=crm_contracts.company_id));
+using (status in ('draft','sent') and exists(select 1 from public.profiles p where p.user_id=auth.uid() and p.company_id=crm_contracts.company_id))
+with check (status in ('draft','sent') and exists(select 1 from public.profiles p where p.user_id=auth.uid() and p.company_id=crm_contracts.company_id));
 
 create or replace function public.crm_get_public_contract(p_token text)
 returns jsonb language plpgsql security definer set search_path=public,extensions

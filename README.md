@@ -60,3 +60,26 @@ The CRM supports subscribing each employee's device to Web Push. Finish these st
 5. Redeploy GitHub Pages and hard-refresh it. Sign in on each device, open Team, and click **Enable push notifications on this device**. Allow browser notifications when prompted.
 
 The Edge Function sends job-change notifications to other subscribed devices in the same company. The existing one-hour reminders still require the CRM page to remain open. Push support depends on the browser and device allowing notifications; iOS typically requires the web app to be installed on the Home Screen.
+
+
+## Contracts, customer signatures, and recurring cleanings
+
+This feature is additive and does not replace `crm_workspaces` or existing jobs, customers, team accounts, or push-notification code.
+
+1. Merge the contracts feature branch after reviewing it.
+2. In Supabase **SQL Editor**, run `supabase/migrations/20261026000000_contracts_signing.sql`. It creates contract records, a token-hash-based public signing RPC, and a durable visit schedule generated when a customer signs.
+3. In Supabase **Project Settings → Edge Functions → Secrets** (or the project's secrets page), add `OPENAI_API_KEY` with an OpenAI API key. Do not put this key in `index.html`, `supabase-config.js`, or GitHub Pages.
+4. The GitHub Actions workflow deploys `contract-scheduling-assistant` with the existing push/reminder functions when the feature is merged to `main`. Confirm the workflow run succeeds.
+5. Refresh the CRM, open the dashboard menu, and select **Contracts & signatures**. Create a contract with the exact frequency and dates in the agreement, then copy the private signing link or open the prepared email draft.
+
+### How contract scheduling works
+
+- A contract can be 2 or 3 years and can specify weekly, monthly, every 2 months, quarterly, every 6 months, yearly, a custom month interval, or exact dates.
+- Public signing records the typed signature name, consent, and timestamp. Only a token hash is stored in the contract table; a sent contract can receive a fresh signing link if needed.
+- The database generates an idempotent visit ledger when the contract is signed. When the owner/employee next opens the CRM, the app syncs those visits into the existing job schedule and skips matching jobs to avoid duplicates.
+- Generated jobs use 9:00 AM and assign to Owner as a starting default; edit assignments/times in the regular Schedule tab to match the customer's agreement.
+- The scheduling assistant is an AI helper, not an autonomous booking agent. It helps clarify the schedule; the actual contract's frequency and dates remain the source of truth.
+
+### Important setup / verification
+
+The SQL migration must be applied in Supabase before the Contracts tab can load. The AI assistant needs `OPENAI_API_KEY` set as a Supabase Edge Function secret. Signing and scheduling should be tested with a sample contract before sending a real agreement to a customer. The signing flow records an electronic signature, but you should review contract wording and applicable e-signature requirements for your business.

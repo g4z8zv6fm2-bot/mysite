@@ -7,10 +7,8 @@ The business-tools UI is merged into `main` and GitHub Pages deployment is autom
 The Edge Function is at `supabase/functions/business-assistant/index.ts`. The function verifies the signed-in user and company, limits the CRM data sent to the AI, and only proposes actions. It does not directly change jobs. Rescheduling requires an Owner or Team Lead to approve and confirm.
 
 Required Supabase Edge Function secret:
-- `OPENAI_API_KEY` — an OpenAI API key with API billing enabled.
 
 Optional:
-- `OPENAI_MODEL` — defaults to `gpt-5-mini`.
 
 Add the secret in **Supabase Dashboard → Project Settings → Edge Functions / Secrets** for project `uxsndyiyqttnrdeanhli`. Never put API keys in browser code or commit them to GitHub. The function deployment is handled by GitHub Actions, but the AI will return a configuration message until the key is set.
 
@@ -60,3 +58,7 @@ After setting up the items above:
 - Send provider test messages only after provider credentials, sender verification, and customer consent/opt-out handling are ready.
 
 Existing auth, employee invite logic, workspace data, and push-notification code were not intentionally changed by the business-tools UI work.
+
+
+## AI features removed
+The AI Business Assistant and AI contract-scheduling assistant have been removed from the CRM interface and their Edge Function endpoints are disabled. No OpenAI API key is required for the CRM's remaining tools.

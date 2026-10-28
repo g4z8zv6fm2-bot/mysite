@@ -57,8 +57,8 @@ html,body,button,a,input,select,textarea{touch-action:manipulation}
 <button class="drawer-link" data-drawer-tab="team"><span class="ico">♧</span>Team</button>
 <button class="drawer-link" data-drawer-tab="revenue"><span class="ico">＄</span>Revenue</button>
 <div class="drawer-label">Preferences</div>
-<button class="drawer-link" data-drawer-tab="settings"><span class="ico">⚙</span>Settings &amp; notifications</button>
-<p class="muted" style="font-size:12px;line-height:1.5;padding:0 12px">Manage push alerts and job reminders here.</p>
+<button class="drawer-link" data-drawer-tab="settings"><span class="ico">⚙</span>Settings &amp; Tools</button>
+<p class="muted" style="font-size:12px;line-height:1.5;padding:0 12px">Business profile, reminders, scheduling, display, reports, and data tools.</p>
 </aside>
 <nav id="nav">
 <button data-tab="home" class="active"><span class="ico">⌂</span>Home</button>
@@ -144,7 +144,7 @@ let calendarMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),cal
 function getScreenZoom(){try{const n=Number(localStorage.getItem("lc_screen_zoom")||"1");return [1,1.1,1.25,1.5].includes(n)?n:1}catch(_){return 1}}
 function setScreenZoom(value){const n=Number(value);if(![1,1.1,1.25,1.5].includes(n))return;try{localStorage.setItem("lc_screen_zoom",String(n))}catch(_){}document.documentElement.style.setProperty("--lc-screen-zoom",String(n));render()}
 try{document.documentElement.style.setProperty("--lc-screen-zoom",String(getScreenZoom()))}catch(_){}
-function setTab(t){tab=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('#welcome').textContent=({home:'Your business at a glance.',schedule:'Manage your jobs.',customers:'Your customer book.',team:'Your team.',revenue:'Track every dollar.',settings:'Personalize your workspace.',contracts:'Manage cleaning contracts.'})[t];render()}
+function setTab(t){tab=t;if(t==='settings')settingsSection='home';document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('#welcome').textContent=({home:'Your business at a glance.',schedule:'Manage your jobs.',customers:'Your customer book.',team:'Your team.',revenue:'Track every dollar.',settings:'Personalize your workspace.',contracts:'Manage cleaning contracts.'})[t];render()}
 function maps(address){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(address)}
 function jobCard(j){return `<article class="card"><label class="bulk-check"><input type="checkbox" ${selectedJobIds.includes(j.id)?'checked':''} onchange="toggleJobSelection('${j.id}',this.checked)"> Select job</label><div class="job"><div class="time">${escapeHtml(j.time||'No time')}<br><small>${escapeHtml(j.date||'')}</small></div><div class="jobbody"><h3>${escapeHtml(j.name)}</h3><p>⌖ ${escapeHtml(j.address)}</p><p>Assigned: ${escapeHtml(j.assignee||'Owner')} · <b>${fmtMoney(j.price)}</b></p><span class="pill ${j.status==='Completed'?'':'scheduled'}">${escapeHtml(j.status)}</span></div></div><div class="actions"><a class="button secondary small" href="${maps(j.address)}" target="_blank" rel="noopener">⌖ Directions</a>${j.status!=='Completed'?`<button class="small" onclick="completeJob('${j.id}')">Mark complete</button>`:''}<button class="small secondary" onclick="editJob('${j.id}')">Edit</button><button class="small danger" onclick="deleteJob('${j.id}')">Delete</button></div></article>`}
 function calendarMoveMonth(delta){calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+delta,1);render()}

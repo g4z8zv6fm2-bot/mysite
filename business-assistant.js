@@ -3,6 +3,7 @@
 (function(){
 'use strict';
 const toolTabs=[
+ ['propertymap','⌂','Property Data Map'],
  ['routes','⌖','Route Optimization'],
  ['communications','✉','Customer Communication'],
  ['documents','▤','Document Center'],

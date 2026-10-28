@@ -368,4 +368,6 @@ $('#todayLabel').textContent=new Date().toLocaleDateString(undefined,{weekday:'l
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 const pm=location.hash.match(/^#contract=([a-f0-9]{64})$/i);if(pm)renderPublicContract(pm[1]);else initAuth().catch(e=>showAuth(e.message||'Could not initialize secure sign-in.'));
 </script>
-\n<script src="./business-assistant.js"></script>\n</body></html>
+
+<script src="./business-assistant.js"></script>
+</body></html>

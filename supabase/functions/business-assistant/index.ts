@@ -51,9 +51,18 @@ Deno.serve(async (req) => {
     const team = Array.isArray(raw.team) ? raw.team : [];
     const context = {
       today: new Date().toISOString().slice(0, 10),
-      jobs: jobs.slice(0, 500),
-      customers: customers.slice(0, 500),
-      team: team.slice(0, 100),
+      // Send only fields needed for scheduling and business summaries. Never send customer phone/email.
+      jobs: jobs.slice(0, 500).map((j: any) => ({
+        id: String(j?.id || ""), name: String(j?.name || ""), date: String(j?.date || ""),
+        time: String(j?.time || ""), assignee: String(j?.assignee || ""),
+        status: String(j?.status || ""), price: Number(j?.price || 0),
+      })),
+      customers: customers.slice(0, 500).map((c: any) => ({
+        id: String(c?.id || ""), name: String(c?.name || ""),
+      })),
+      team: team.slice(0, 100).map((m: any) => ({
+        id: String(m?.id || ""), name: String(m?.name || ""), role: String(m?.role || ""),
+      })),
     };
 
     const instructions = `You are the business assistant for a window-cleaning company. Analyze only the supplied CRM data; do not invent facts, customer contact details, or job IDs. Be concise and practical. Never claim an email, SMS, notification, or document was sent. You may recommend changes, but MUST NOT perform any action. Return JSON only with keys: summary (string), action (string), items (array of {title:string,detail:string}), suggestions (array of {title:string,detail:string,jobId:string|null,newDate:string|null,newTime:string|null}). Only include a rescheduling suggestion when a real supplied job ID is known and you can justify a proposed date/time; otherwise set jobId/newDate/newTime to null. Never suggest changing a completed job. Use ISO dates YYYY-MM-DD and 24-hour times HH:MM. Any suggestion must be clearly a proposal requiring owner/authorized-user approval. Keep personal data to the minimum needed for the question.`;

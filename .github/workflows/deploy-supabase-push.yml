@@ -1,4 +1,4 @@
-name: Deploy Supabase push function
+name: Deploy Supabase functions
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
       - "supabase/functions/send-push-notification/**"
       - "supabase/functions/send-job-reminders/**"
       - "supabase/functions/contract-scheduling-assistant/**"
+      - "supabase/functions/business-assistant/**"
+      - "supabase/functions/customer-communications/**"
       - "supabase/migrations/**"
       - ".github/workflows/deploy-supabase-push.yml"
   workflow_dispatch:
@@ -44,7 +46,7 @@ jobs:
         run: |
           supabase secrets set "REMINDER_CRON_SECRET=$REMINDER_CRON_SECRET" --project-ref uxsndyiyqttnrdeanhli
 
-      - name: Deploy push notification functions (retry transient registry/network errors)
+      - name: Deploy Supabase Edge Functions (retry transient registry/network errors)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         shell: bash
@@ -68,3 +70,5 @@ jobs:
           deploy_with_retry send-push-notification
           deploy_with_retry send-job-reminders
           deploy_with_retry contract-scheduling-assistant
+          deploy_with_retry business-assistant
+          deploy_with_retry customer-communications

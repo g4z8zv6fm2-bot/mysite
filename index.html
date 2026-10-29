@@ -369,7 +369,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigato
 const pm=location.hash.match(/^#contract=([a-f0-9]{64})$/i);if(pm)renderPublicContract(pm[1]);else initAuth().catch(e=>showAuth(e.message||'Could not initialize secure sign-in.'));
 </script>
 
-<script src="./business-assistant.js"></script>
+<script src="./business-assistant.js?v=propertymap-fix-20261029"></script>
 <script>
 /* Hide the sticky dashboard banner while scrolling down; reveal it when scrolling up. */
 (function(){let lastY=window.scrollY||0,raf=false;function update(){const header=document.querySelector("#appShell header")||document.querySelector("header");if(!header)return;const y=window.scrollY||0;header.classList.add("lc-header-scrolling");if(y<90){header.classList.remove("lc-header-hidden")}else if(y>lastY+3){header.classList.add("lc-header-hidden")}else if(y<lastY-3){header.classList.remove("lc-header-hidden")}lastY=y;raf=false}window.addEventListener("scroll",function(){if(!raf){raf=true;window.requestAnimationFrame(update)}},{passive:true});window.addEventListener("pageshow",function(){lastY=window.scrollY||0;update()});})();

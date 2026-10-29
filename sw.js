@@ -1,4 +1,4 @@
-const CACHE='legendary-cleaners-v22';
+const CACHE='legendary-cleaners-v23';
 const FILES=['./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{const c=await caches.open(CACHE);await Promise.all(FILES.map(async url=>{try{const r=await fetch(url,{cache:'reload'});if(r.ok)await c.put(url,r)}catch(_){}}));await self.skipWaiting()})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)));await self.clients.claim()})()));

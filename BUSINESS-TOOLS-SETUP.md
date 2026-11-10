@@ -2,15 +2,9 @@
 
 The business-tools UI is merged into `main` and GitHub Pages deployment is automatic. The GitHub Actions workflow now also deploys the two new Supabase Edge Functions when the workflow or those function folders change. This does not automatically configure third-party credentials or create the document bucket.
 
-## 1. AI Business Assistant
+## 1. AI features
 
-The Edge Function is at `supabase/functions/business-assistant/index.ts`. The function verifies the signed-in user and company, limits the CRM data sent to the AI, and only proposes actions. It does not directly change jobs. Rescheduling requires an Owner or Team Lead to approve and confirm.
-
-Required Supabase Edge Function secret:
-
-Optional:
-
-Add the secret in **Supabase Dashboard → Project Settings → Edge Functions / Secrets** for project `uxsndyiyqttnrdeanhli`. Never put API keys in browser code or commit them to GitHub. The function deployment is handled by GitHub Actions, but the AI will return a configuration message until the key is set.
+AI features are intentionally removed from Legendary Cleaners CRM. The business-assistant and contract-scheduling-assistant Edge Function endpoints return HTTP 410 and do not call an AI provider. No OpenAI API key is needed.
 
 ## 2. Private Document Center
 
@@ -54,7 +48,6 @@ After setting up the items above:
 - Make a harmless test job edit and confirm it saves and appears on another device.
 - Test existing push notifications and the one-hour reminder path separately.
 - Test document upload/open with two different company memberships to check company isolation.
-- Ask the AI for a summary first; verify its suggestions before approving a controlled test reschedule.
 - Send provider test messages only after provider credentials, sender verification, and customer consent/opt-out handling are ready.
 
 Existing auth, employee invite logic, workspace data, and push-notification code were not intentionally changed by the business-tools UI work.

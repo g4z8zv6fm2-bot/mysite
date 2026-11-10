@@ -8,9 +8,9 @@ AI features are intentionally removed from Legendary Cleaners CRM. The business-
 
 ## 2. Private Document Center
 
-The SQL file is `business-assistant-storage.sql`. Open the Supabase SQL Editor for project `uxsndyiyqttnrdeanhli`, review the SQL, and run it once. It creates the private `crm-documents` bucket, limits files to 15 MB, and scopes object access by the company ID in the first folder segment.
+The private `crm-documents` bucket is now configured in Supabase project `uxsndyiyqttnrdeanhli`. It is limited to 15 MB and has company-scoped read, upload, and delete policies. The bucket is private; do not make it public. The corresponding migration is `supabase/migrations/20261110202513_configure_private_crm_document_storage.sql`.
 
-Until the SQL is run successfully, document uploads will not work. Do not make the bucket public.
+No files existed in the bucket at setup time. Test an upload and open operation using an owner and an employee account before relying on it.
 
 ## 3. Customer email and SMS
 

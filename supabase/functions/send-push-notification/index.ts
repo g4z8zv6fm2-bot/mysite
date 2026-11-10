@@ -98,7 +98,8 @@ async function sendDueJobReminders(admin: any, vapidSubject: string, vapidPublic
       const jobId = String(job.id || job.jobId || "").trim();
       if (!date || !time || !jobId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) continue;
       const startsAt = localTimeToUtc(date, time, timeZone); if (!startsAt) continue;
-      const minutesUntil = (startsAt.getTime() - now) / 60000; if (minutesUntil < 55 || minutesUntil > 65) continue;
+      // A wider window tolerates normal scheduler jitter while the unique delivery row prevents duplicates.
+      const minutesUntil = (startsAt.getTime() - now) / 60000; if (minutesUntil < 45 || minutesUntil > 75) continue;
       due++;
       const { error: claimError } = await admin.from("job_reminder_deliveries").insert({ company_id: workspace.company_id, job_id: jobId, job_date: date, job_time: time });
       if (claimError) { if (claimError.code === "23505") { skipped++; continue; } console.error("Could not claim reminder:", claimError.message); failed++; continue; }

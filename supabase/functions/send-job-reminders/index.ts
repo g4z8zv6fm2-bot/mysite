@@ -60,7 +60,8 @@ Deno.serve(async (req) => {
         if (!startsAt) continue;
         const minutesUntil = (startsAt.getTime() - now) / 60000;
         // GitHub Actions runs every 5 minutes. This window allows for small scheduler delays.
-        if (minutesUntil < 55 || minutesUntil > 65) continue;
+        // Match the five-minute GitHub Actions schedule while allowing normal scheduler jitter.
+        if (minutesUntil < 45 || minutesUntil > 75) continue;
         due++;
 
         // A unique database key prevents duplicate reminders across repeated scheduled runs.

@@ -4,7 +4,6 @@
 'use strict';
 const toolTabs=[
  ['routes','⌖','Route Optimization'],
- ['communications','✉','Customer Communication'],
  ['documents','▤','Document Center'],
  ['activity','◷','Activity Log & Cloud Status'],
  ['portal','♙','Customer Portal']
@@ -35,56 +34,6 @@ function renderRoutes(app){
 }
 function documentsHtml(){ensure();if(!db.assistantTools.documents.length)return '<p class="muted">No documents indexed yet.</p>';return db.assistantTools.documents.map(d=>{const c=arr(db.customers).find(x=>x.id===d.customerId);return '<div class="lc-doc-row"><div><b>'+esc(d.title)+'</b><div class="muted">'+esc(d.type)+' · '+esc(c?.name||'General')+' · '+esc(d.fileName||'File')+'</div><small class="muted">'+esc(new Date(d.createdAt).toLocaleString())+'</small></div><button class="small secondary" onclick="lcOpenDocument(\''+d.id+'\')">Open</button></div>'}).join('')}
 window.lcOpenDocument=async function(id){ensure();const d=db.assistantTools.documents.find(x=>x.id===id);if(!d||!supabaseClient)return;const r=await supabaseClient.storage.from('crm-documents').createSignedUrl(d.path,60);if(r.error){alert('Could not open this document: '+r.error.message);return;}window.open(r.data.signedUrl,'_blank','noopener')};
-function renderComms(app){
- ensure();
- app.innerHTML=pageHead('Customer Communication','Prepare a message on this iPhone, then review it and tap Send. Message history distinguishes prepared drafts from provider submissions.')+
- card('Compose a message','<form id="lcMsgForm"><label>Customer</label><select name="customerId" required><option value="">Choose customer…</option>'+arr(db.customers).map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('')+'</select><label>Message type</label><select name="type"><option>Appointment confirmation</option><option>Appointment reminder</option><option>Estimate</option><option>Job completed</option><option>Follow-up</option><option>Custom message</option></select><label>Delivery channel</label><select name="channel"><option>SMS</option><option>Email</option></select><label>Send using</label><select name="sendMethod"><option value="phone">This iPhone (open Messages / Mail)</option><option value="provider">Connected cloud provider</option></select><label>Message</label><textarea name="body" required rows="4" placeholder="Hello, confirming your window cleaning appointment…"></textarea><button type="submit">Prepare message</button></form><p class="muted">This iPhone option opens the native app with the recipient and message filled in. You must review and tap Send yourself. Cloud sending requires the configured customer-communications function and provider credentials.</p>')+
- card('Message history','<div id="lcMessageList">'+messagesHtml()+'</div>');
- const form=document.getElementById('lcMsgForm');
- form.elements.type.onchange=()=>{const type=form.elements.type.value;if(type==='Custom message')return;const c=arr(db.customers).find(x=>x.id===form.elements.customerId.value);form.elements.body.value=messageTemplate(type,c)};
- form.elements.customerId.onchange=()=>{if(form.elements.type.value!=='Custom message')form.elements.body.value=messageTemplate(form.elements.type.value,arr(db.customers).find(x=>x.id===form.elements.customerId.value))};
- form.elements.channel.onchange=()=>{form.querySelector('button[type=submit]').textContent=form.elements.sendMethod.value==='phone'?'Prepare '+(form.elements.channel.value==='SMS'?'text':'email'):'Send through provider'};
- form.elements.sendMethod.onchange=()=>{form.querySelector('button[type=submit]').textContent=form.elements.sendMethod.value==='phone'?'Prepare '+(form.elements.channel.value==='SMS'?'text':'email'):'Send through provider'};
- form.onsubmit=async e=>{
-   e.preventDefault();
-   const f=new FormData(form),customer=arr(db.customers).find(c=>c.id===f.get('customerId'));
-   if(!customer)return;
-   const channel=String(f.get('channel')),type=String(f.get('type')),method=String(f.get('sendMethod')),body=String(f.get('body')).trim();
-   if(!body)return;
-   const dest=channel==='SMS'?customer.phone:customer.email;
-   if(!dest){alert('This customer does not have a saved '+(channel==='SMS'?'phone number':'email address')+'. Add the contact detail before sending.');return;}
-   if(channel==='SMS'&&customer.smsConsent!==true){alert('SMS consent has not been recorded for this customer. Ask permission before sending a text, then update the customer record.');return;}
-   ensure();
-   if(method==='phone'){
-     const subject='Legendary Cleaners — '+type;
-     const url=channel==='SMS'
-       ?'sms:'+String(dest).trim().replace(/[^\d+]/g,'')+'?&body='+encodeURIComponent(body)
-       :'mailto:'+encodeURIComponent(String(dest).trim())+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
-     db.assistantTools.messages.unshift({id:crypto.randomUUID(),customerId:customer.id,channel,type,body,status:'Draft prepared — tap Send in '+(channel==='SMS'?'Messages':'Mail'),providerId:null,at:new Date().toISOString()});
-     log('Prepared customer message',type+' for '+customer.name,'Draft only — not sent');
-     save();
-     window.location.href=url;
-     return;
-   }
-   if(!supabaseClient){alert('Sign in to send customer messages through the cloud provider.');return;}
-   const btn=form.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Sending…';
-   try{
-     const result=await supabaseClient.functions.invoke('customer-communications',{body:{customerId:customer.id,channel,type,body,destination:dest,companyId}});
-     if(result.error)throw result.error;
-     if(result.data?.error)throw new Error(result.data.error);
-     db.assistantTools.messages.unshift({id:crypto.randomUUID(),customerId:customer.id,channel,type,body,status:result.data?.status||'Provider accepted — delivery not confirmed',providerId:result.data?.messageId||null,at:new Date().toISOString()});
-     log('Submitted customer message',type+' to '+customer.name,result.data?.status||'Provider accepted');
-     save();render();
-   }catch(err){
-     db.assistantTools.messages.unshift({id:crypto.randomUUID(),customerId:customer.id,channel,type,body,status:'Failed / not delivered',error:err.message||'Provider not configured',at:new Date().toISOString()});
-     log('Customer message failed',type+' to '+customer.name,'Failed');
-     save();alert('Message was not confirmed as sent. Check provider setup. Details: '+(err.message||'Function unavailable'));render();
-   }
- };
-}
-function messageTemplate(type,c){const name=c?.name||'there';return ({'Appointment confirmation':'Hi '+name+', this is Legendary Cleaners confirming your window cleaning appointment. Please reply if you need to make a change.','Appointment reminder':'Hi '+name+', a friendly reminder about your upcoming window cleaning appointment with Legendary Cleaners. Please reply if you need to reschedule.','Estimate':'Hi '+name+', your Legendary Cleaners estimate is ready. Please contact us if you have questions.','Job completed':'Hi '+name+', your window cleaning service is complete. Thank you for choosing Legendary Cleaners!','Follow-up':'Hi '+name+', thanks for choosing Legendary Cleaners. Would you like to schedule your next window cleaning?','Custom message':''})[type]||''}
-function messagesHtml(){ensure();if(!db.assistantTools.messages.length)return '<p class="muted">No messages yet.</p>';return db.assistantTools.messages.slice(0,100).map(m=>{const c=arr(db.customers).find(x=>x.id===m.customerId);return '<div class="lc-doc-row"><div><b>'+esc(m.type)+' · '+esc(c?.name||'Customer')+'</b><div class="muted">'+esc(m.channel)+' · '+esc(m.status)+'</div><small class="muted">'+esc(new Date(m.at).toLocaleString())+'</small></div><button class="small secondary" onclick="lcShowMessage(\''+m.id+'\')">Details</button></div>'}).join('')}
-window.lcShowMessage=function(id){ensure();const m=db.assistantTools.messages.find(x=>x.id===id);if(m)alert(m.type+'\\nStatus: '+m.status+'\\n'+m.body+(m.error?'\\nError: '+m.error:''))};
 async function renderActivity(app){
  ensure();
  const status=document.getElementById('syncStatus')?.textContent||'Status unavailable';
@@ -152,13 +101,13 @@ function renderPortal(app){
  }
  bindRevokeButtons();
 }
-const featureRender={routes:renderRoutes,communications:renderComms,documents:renderDocuments,activity:renderActivity,portal:renderPortal};
+const featureRender={routes:renderRoutes,documents:renderDocuments,activity:renderActivity,portal:renderPortal};
 const oldRender=window.render,oldSetTab=window.setTab,oldSave=window.save,oldCustomerForm=window.customerForm;
 if(typeof oldRender!=='function'||typeof oldSetTab!=='function')return;
 if(typeof oldCustomerForm==='function'){window.customerForm=function(existing={}){oldCustomerForm(existing);const form=document.getElementById('customerForm');if(form&&!form.querySelector('[name="email"]')){const label=document.createElement('label');label.textContent='Email address';const input=document.createElement('input');input.name='email';input.type='email';input.autocomplete='email';input.placeholder='customer@example.com';input.value=existing.email||'';const submit=form.querySelector('button[type="submit"]');form.insertBefore(label,submit);form.insertBefore(input,submit);}}}
 function injectNav(){const drawer=document.getElementById('dashboardDrawer');if(!drawer||drawer.querySelector('[data-lc-tools]'))return;const label=document.createElement('div');label.className='drawer-label';label.textContent='Business tools';label.setAttribute('data-lc-tools','label');drawer.appendChild(label);toolTabs.forEach(([id,ico,name])=>{const b=document.createElement('button');b.className='drawer-link';b.dataset.lcFeature=id;b.innerHTML='<span class="ico">'+ico+'</span>'+name;b.addEventListener('click',()=>{search='';window.setTab(id);document.querySelectorAll('[data-drawer-tab]').forEach(x=>x.classList.remove('active'));document.querySelectorAll('[data-lc-feature]').forEach(x=>x.classList.toggle('active',x.dataset.lcFeature===id));toggleDashboardMenu(false)});drawer.appendChild(b)})}
 window.render=function(){if(auditSnapshot===null){try{auditSnapshot=auditState()}catch(_){}}if(featureRender[tab]){const app=document.getElementById('app');if(app)featureRender[tab](app);return;}return oldRender()};
-window.setTab=function(t){if(featureRender[t]){tab=t;window.scrollTo(0,0);document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));const welcome=document.getElementById('welcome');if(welcome)welcome.textContent=({routes:'Plan employee driving routes.',communications:'Customer messages and delivery tracking.',documents:'Customer files and job documents.',activity:'Changes, cloud status, and delivery outcomes.',portal:'Secure customer self-service.'})[t]||'Business tools';injectNav();window.render();return;}document.querySelectorAll('[data-lc-feature]').forEach(x=>x.classList.remove('active'));return oldSetTab(t)};
+window.setTab=function(t){if(featureRender[t]){tab=t;window.scrollTo(0,0);document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));const welcome=document.getElementById('welcome');if(welcome)welcome.textContent=({routes:'Plan employee driving routes.',documents:'Customer files and job documents.',activity:'Changes, cloud status, and delivery outcomes.',portal:'Secure customer self-service.'})[t]||'Business tools';injectNav();window.render();return;}document.querySelectorAll('[data-lc-feature]').forEach(x=>x.classList.remove('active'));return oldSetTab(t)};
 let auditSnapshot=null;
 function auditState(){return JSON.stringify({jobs:arr(db.jobs),customers:arr(db.customers),team:arr(db.team)})}
 function recordDiff(before,after){try{const a=JSON.parse(before||'{}'),b=JSON.parse(after||'{}');for(const kind of ['jobs','customers','team']){const oldRows=arr(a[kind]),newRows=arr(b[kind]),label=kind==='jobs'?'job':kind==='customers'?'customer':'team member',key=x=>String(x.id||x.email||x.name||''),oldMap=new Map(oldRows.map(x=>[key(x),x])),newMap=new Map(newRows.map(x=>[key(x),x]));for(const [id,x] of newMap){if(!oldMap.has(id))log('Created '+label,x.name||x.fullName||id);else if(JSON.stringify(oldMap.get(id))!==JSON.stringify(x))log('Updated '+label,x.name||id)}for(const [id,x] of oldMap)if(!newMap.has(id))log('Removed '+label,x.name||id)}}catch(_){}}

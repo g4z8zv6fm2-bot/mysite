@@ -79,7 +79,13 @@ Deno.serve(async (req) => {
       if (!sid || !token || !from) return json({ error: "SMS sending is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER in Supabase secrets.", status: "Not sent" }, 503);
       const to = normalizePhone(destination);
       if (!/^\+\d{8,15}$/.test(to)) return json({ error: "Save the customer's phone number in international format, such as +18595550123.", status: "Not sent" }, 400);
-      const form = new URLSearchParams({ To: to, From: from, Body: message });
+      // Identify the sender and include the standard opt-out instruction on every CRM text.
+      // SMS is still blocked above unless this customer has explicitly opted in.
+      const smsParts = [message];
+      if (!/\blegendary cleaners\b/i.test(message)) smsParts.push("Legendary Cleaners");
+      if (!/\b(reply|text)\s+stop\b/i.test(message)) smsParts.push("Reply STOP to unsubscribe.");
+      const smsBody = smsParts.join("\n\n");
+      const form = new URLSearchParams({ To: to, From: from, Body: smsBody });
       const response = await fetch("https://api.twilio.com/2010-04-01/Accounts/" + encodeURIComponent(sid) + "/Messages.json", {
         method: "POST",
         headers: {

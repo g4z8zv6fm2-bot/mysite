@@ -80,8 +80,10 @@ Deno.serve(async (req) => {
         .eq("company_id", grant.company_id);
       const customerEmail = normalize(customer.email);
       const contracts = (companyContracts || []).filter((c: any) =>
-        (c.customer_id && String(c.customer_id) === grant.customer_id) ||
-        (customerEmail && normalize(c.customer_email) === customerEmail)
+        (c.status === "sent" || c.status === "signed") && (
+          (c.customer_id && String(c.customer_id) === grant.customer_id) ||
+          (customerEmail && normalize(c.customer_email) === customerEmail)
+        )
       ).map((c: any) => ({
         title: c.title,
         termYears: c.term_years,

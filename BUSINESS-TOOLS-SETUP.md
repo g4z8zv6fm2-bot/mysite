@@ -33,6 +33,11 @@ Every outbound SMS now identifies Legendary Cleaners and includes “Reply STOP 
 
 The current response means the provider accepted the request, not that the message reached the customer's inbox or phone. Provider delivery-status webhooks and final delivery tracking are not implemented yet.
 
+### Use the old iPhone for customer messages
+The Customer Communication screen also has a **This iPhone (open Messages / Mail)** option. On the iPhone, it opens the native Messages app with the customer's phone number and text filled in, or Mail with the recipient, subject, and email body filled in. The user must review the draft and tap Send. A prepared draft is recorded as a draft, not as a sent or delivered message. SMS still requires recorded customer consent. This does not require Twilio or Resend, but it is a manual send workflow and will not send while the CRM is closed.
+
+The separate **Connected cloud provider** option is for background/provider sending and still requires the Resend or Twilio secrets listed above. Provider acceptance is not proof of final delivery.
+
 ## 4. Route Planner and Activity Log
 
 The Route Planner groups scheduled jobs by date/address and can create a multi-stop Google Maps route link. It is a basic planner, not a traffic-aware route optimizer.

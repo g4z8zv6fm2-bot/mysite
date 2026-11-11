@@ -43,6 +43,10 @@ Deno.serve(async (req) => {
     const customer = Array.isArray(data.customers) ? data.customers.find((c: any) => String(c?.id) === customerId) : null;
     if (!customer) return json({ error: "That customer was not found in your company workspace." }, 404);
 
+    if (channel === "SMS" && customer.smsConsent !== true) {
+      return json({ error: "SMS consent has not been recorded for this customer. Ask for permission before sending a text.", status: "Not sent" }, 403);
+    }
+
     const destination = channel === "SMS" ? String(customer.phone || "").trim() : String(customer.email || "").trim();
     if (!destination) return json({ error: "This customer has no saved " + (channel === "SMS" ? "phone number." : "email address."), status: "Not sent" }, 400);
 

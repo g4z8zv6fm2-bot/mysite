@@ -10,6 +10,7 @@ on:
       - "supabase/functions/business-assistant/**"
       - "supabase/functions/customer-communications/**"
       - "supabase/functions/customer-portal/**"
+      - "supabase/functions/configure-reminder-cron/**"
       - "supabase/migrations/**"
       - ".github/workflows/deploy-supabase-push.yml"
   workflow_dispatch:
@@ -74,3 +75,16 @@ jobs:
           deploy_with_retry business-assistant
           deploy_with_retry customer-communications
           deploy_with_retry customer-portal
+          deploy_with_retry configure-reminder-cron
+
+      - name: Register Supabase Cron reminder schedule
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          curl --fail-with-body --silent --show-error --retry 2 --retry-delay 2 \
+            --request POST \
+            --url "https://uxsndyiyqttnrdeanhli.supabase.co/functions/v1/configure-reminder-cron" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "x-cron-secret: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{}'

@@ -46,10 +46,30 @@ function renderComms(app){
 function messageTemplate(type,c){const name=c?.name||'there';return ({'Appointment confirmation':'Hi '+name+', this is Legendary Cleaners confirming your window cleaning appointment. Please reply if you need to make a change.','Appointment reminder':'Hi '+name+', a friendly reminder about your upcoming window cleaning appointment with Legendary Cleaners. Please reply if you need to reschedule.','Estimate':'Hi '+name+', your Legendary Cleaners estimate is ready. Please contact us if you have questions.','Job completed':'Hi '+name+', your window cleaning service is complete. Thank you for choosing Legendary Cleaners!','Follow-up':'Hi '+name+', thanks for choosing Legendary Cleaners. Would you like to schedule your next window cleaning?','Custom message':''})[type]||''}
 function messagesHtml(){ensure();if(!db.assistantTools.messages.length)return '<p class="muted">No messages yet.</p>';return db.assistantTools.messages.slice(0,100).map(m=>{const c=arr(db.customers).find(x=>x.id===m.customerId);return '<div class="lc-doc-row"><div><b>'+esc(m.type)+' · '+esc(c?.name||'Customer')+'</b><div class="muted">'+esc(m.channel)+' · '+esc(m.status)+'</div><small class="muted">'+esc(new Date(m.at).toLocaleString())+'</small></div><button class="small secondary" onclick="lcShowMessage(\''+m.id+'\')">Details</button></div>'}).join('')}
 window.lcShowMessage=function(id){ensure();const m=db.assistantTools.messages.find(x=>x.id===id);if(m)alert(m.type+'\\nStatus: '+m.status+'\\n'+m.body+(m.error?'\\nError: '+m.error:''))};
-function renderActivity(app){ensure();const status=document.getElementById('syncStatus')?.textContent||'Status unavailable';app.innerHTML=pageHead('Activity Log & Cloud Status','Recent changes and delivery outcomes recorded by this CRM.')+
- '<div class="grid"><div class="card metric"><small>Cloud status</small><strong>'+esc(status)+'</strong><span>Current app indicator</span></div><div class="card metric"><small>Activity entries</small><strong>'+db.assistantTools.activity.length+'</strong><span>Stored in shared workspace data</span></div><div class="card metric"><small>Messages</small><strong>'+db.assistantTools.messages.length+'</strong><span>Delivery status only when returned by provider</span></div></div>'+
- card('Recent activity',db.assistantTools.activity.length?db.assistantTools.activity.slice(0,150).map(a=>'<div class="lc-activity-row"><div><b>'+esc(a.action)+'</b><div class="muted">'+esc(a.detail)+'</div><small class="muted">'+esc(a.actor)+' · '+esc(new Date(a.at).toLocaleString())+'</small></div><span class="lc-status">'+esc(a.status)+'</span></div>').join(''):'<p class="muted">No activity recorded yet.</p>')+
- '<div class="notice">Activity logging starts after this feature is enabled. It is not a tamper-proof audit ledger; for compliance-grade audit history, use a database audit table with server-side policies.</div>';
+async function renderActivity(app){
+ ensure();
+ const status=document.getElementById('syncStatus')?.textContent||'Status unavailable';
+ app.innerHTML=pageHead('Activity Log & Cloud Status','Recent server-recorded workspace changes and app-side activity.')+
+ '<div class="grid"><div class="card metric"><small>Cloud status</small><strong>'+esc(status)+'</strong><span>Current app indicator</span></div><div class="card metric"><small>Local activity entries</small><strong>'+db.assistantTools.activity.length+'</strong><span>Recorded by this browser session</span></div><div class="card metric"><small>Messages</small><strong>'+db.assistantTools.messages.length+'</strong><span>Provider acceptance is not final delivery</span></div></div>'+
+ card('Server audit trail','<div id="lcServerAudit"><p class="muted">Loading company audit history…</p></div>')+
+ card('Local activity',db.assistantTools.activity.length?db.assistantTools.activity.slice(0,100).map(a=>'<div class="lc-activity-row"><div><b>'+esc(a.action)+'</b><div class="muted">'+esc(a.detail)+'</div><small class="muted">'+esc(a.actor)+' · '+esc(new Date(a.at).toLocaleString())+'</small></div><span class="lc-status">'+esc(a.status)+'</span></div>').join(''):'<p class="muted">No local activity recorded yet.</p>')+
+ '<div class="notice">The server audit trail records the changed workspace sections and timestamp without copying customer or job contents. It is more reliable than browser-only history, but it is not a compliance-certified immutable audit system.</div>';
+ const holder=document.getElementById('lcServerAudit');
+ if(!holder)return;
+ if(!supabaseClient){holder.innerHTML='<p class="muted">Sign in to view the company audit trail.</p>';return;}
+ try{
+   const result=await supabaseClient.from('crm_workspace_audit').select('id,operation,changed_sections,user_id,created_at').order('created_at',{ascending:false}).limit(50);
+   if(!document.getElementById('lcServerAudit'))return;
+   if(result.error)throw result.error;
+   const rows=arr(result.data);
+   holder.innerHTML=rows.length?rows.map(row=>{
+     const sections=arr(row.changed_sections).map(key=>({jobs:'Jobs',customers:'Customers',team:'Team'}[key]||String(key).replace(/_/g,' '))).join(', ');
+     const actor=row.user_id?(row.user_id===currentUser?.id?'You':'Company member'):'System';
+     return '<div class="lc-activity-row"><div><b>'+esc(row.operation==='INSERT'?'Created workspace':'Updated workspace')+'</b><div class="muted">Changed: '+esc(sections||'Workspace data')+'</div><small class="muted">'+esc(actor)+' · '+esc(new Date(row.created_at).toLocaleString())+'</small></div><span class="lc-status">Server</span></div>';
+   }).join(''):'<p class="muted">No server-recorded workspace changes yet. New changes will appear here.</p>';
+ }catch(error){
+   holder.innerHTML='<p class="muted">Could not load the server audit trail: '+esc(error.message||'Unknown error')+'</p>';
+ }
 }
 function renderPortal(app){
  ensure();

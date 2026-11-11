@@ -29,6 +29,8 @@ Configure these secrets in Supabase for project `uxsndyiyqttnrdeanhli`:
 
 The Edge Function deploys through GitHub Actions. Email/SMS remain unavailable until the corresponding provider is configured. The CRM now records explicit SMS consent on each customer; SMS is blocked unless that consent is checked. Send only messages the customer expects or has agreed to receive, and honor opt-outs.
 
+Every outbound SMS now identifies Legendary Cleaners and includes “Reply STOP to unsubscribe”; the Edge Function still blocks SMS unless the customer has explicitly opted in. Twilio's opt-out handling and the business's A2P/toll-free sender registration must also be configured as applicable.
+
 The current response means the provider accepted the request, not that the message reached the customer's inbox or phone. Provider delivery-status webhooks and final delivery tracking are not implemented yet.
 
 ## 4. Route Planner and Activity Log

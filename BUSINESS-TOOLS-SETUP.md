@@ -1,6 +1,6 @@
 # Legendary Cleaners Business Tools — Setup and Launch Checklist
 
-The business-tools UI is merged into `main` and GitHub Pages deployment is automatic. The GitHub Actions workflow now also deploys the two new Supabase Edge Functions when the workflow or those function folders change. This does not automatically configure third-party credentials or create the document bucket.
+The business-tools UI is deployed through GitHub Pages. The Supabase deployment workflow deploys the push, reminder, contract, communication, and customer-portal Edge Functions. Provider credentials still need to be configured separately.
 
 ## 1. AI features
 
@@ -27,7 +27,7 @@ Configure these secrets in Supabase for project `uxsndyiyqttnrdeanhli`:
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_FROM_NUMBER` — a Twilio-enabled sender.
 
-The Edge Function deploys through GitHub Actions. Email/SMS remain unavailable until the corresponding provider is configured. Send only messages the customer expects or has agreed to receive, and honor opt-outs.
+The Edge Function deploys through GitHub Actions. Email/SMS remain unavailable until the corresponding provider is configured. The CRM now records explicit SMS consent on each customer; SMS is blocked unless that consent is checked. Send only messages the customer expects or has agreed to receive, and honor opt-outs.
 
 The current response means the provider accepted the request, not that the message reached the customer's inbox or phone. Provider delivery-status webhooks and final delivery tracking are not implemented yet.
 
@@ -37,16 +37,20 @@ The Route Planner groups scheduled jobs by date/address and can create a multi-s
 
 The Activity Log records changes it can observe in the app's save flow. It is not yet a server-authoritative audit trail and does not independently verify push delivery or cloud persistence. Continue to verify important changes on a second device.
 
-## 5. Customer Portal — not ready to share
+## 5. Customer Portal
 
-The Customer Portal is currently a readiness screen, not a functioning customer-facing portal. Do not send customers a portal link yet. A production portal still needs secure customer access grants, revocable tokens, and server-side scoped APIs for estimates, contracts, appointments, and invoices. It must never expose the full `crm_workspaces.data` payload.
+The Customer Portal now supports Owner-created, private customer links. Each link uses a random token, stores only its SHA-256 hash, expires after 30 days, and can be revoked. The server returns only the matched customer's appointments and contracts; it never returns the full `crm_workspaces.data` payload, employee directory, or other customers. Estimates and invoices are not shown because those record types are not yet part of the CRM data model.
+
+Before sharing a link with a real customer, test creation, opening, expiry, and revocation with a test customer record. Only the Owner can create or revoke links.
 
 ## 6. Safe verification
 
 After setting up the items above:
 - Verify Owner and employee logins still work.
 - Make a harmless test job edit and confirm it saves and appears on another device.
-- Test existing push notifications and the one-hour reminder path separately.
+- Test existing push notifications and the one-hour reminder path separately. The primary one-hour reminder schedule is Supabase Cron every minute; GitHub Actions remains a five-minute backup.
+- Test a customer portal link with a test customer before sharing it.
+- Record SMS consent on the customer record before sending any text.
 - Test document upload/open with two different company memberships to check company isolation.
 - Send provider test messages only after provider credentials, sender verification, and customer consent/opt-out handling are ready.
 

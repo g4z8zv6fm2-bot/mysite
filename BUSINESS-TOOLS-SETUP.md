@@ -35,7 +35,7 @@ The current response means the provider accepted the request, not that the messa
 
 The Route Planner groups scheduled jobs by date/address and can create a multi-stop Google Maps route link. It is a basic planner, not a traffic-aware route optimizer.
 
-The Activity Log records changes it can observe in the app's save flow. It is not yet a server-authoritative audit trail and does not independently verify push delivery or cloud persistence. Continue to verify important changes on a second device.
+The Activity Log now includes a server-side audit trail for shared workspace changes. It records the operation, timestamp, actor when available, and top-level sections changed (such as jobs, customers, or team) without copying customer or job contents. Browser-local activity remains available as a supplemental view. This is not a compliance-certified immutable audit system and does not independently prove push delivery.
 
 ## 5. Customer Portal
 

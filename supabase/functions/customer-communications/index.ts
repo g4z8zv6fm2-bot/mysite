@@ -81,9 +81,10 @@ Deno.serve(async (req) => {
       if (!/^\+\d{8,15}$/.test(to)) return json({ error: "Save the customer's phone number in international format, such as +18595550123.", status: "Not sent" }, 400);
       // Identify the sender and include the standard opt-out instruction on every CRM text.
       // SMS is still blocked above unless this customer has explicitly opted in.
-      const smsBody = /\b(reply|text)\s+stop\b/i.test(message)
-        ? message
-        : message + "\n\nLegendary Cleaners. Reply STOP to unsubscribe.";
+      const smsParts = [message];
+      if (!/\blegendary cleaners\b/i.test(message)) smsParts.push("Legendary Cleaners");
+      if (!/\b(reply|text)\s+stop\b/i.test(message)) smsParts.push("Reply STOP to unsubscribe.");
+      const smsBody = smsParts.join("\n\n");
       const form = new URLSearchParams({ To: to, From: from, Body: smsBody });
       const response = await fetch("https://api.twilio.com/2010-04-01/Accounts/" + encodeURIComponent(sid) + "/Messages.json", {
         method: "POST",

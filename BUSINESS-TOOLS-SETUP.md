@@ -1,6 +1,6 @@
 # Legendary Cleaners Business Tools — Setup and Launch Checklist
 
-The business-tools UI is deployed through GitHub Pages. The Supabase deployment workflow deploys the push, reminder, contract, communication, and customer-portal Edge Functions. Provider credentials still need to be configured separately.
+The business-tools UI is deployed through GitHub Pages. The Supabase deployment workflow deploys the push, reminder, contract, and customer-portal Edge Functions.
 
 ## 1. AI features
 
@@ -12,31 +12,9 @@ The private `crm-documents` bucket is now configured in Supabase project `uxsndy
 
 No files existed in the bucket at setup time. Test an upload and open operation using an owner and an employee account before relying on it.
 
-## 3. Customer email and SMS
+## 3. Customer Communication removed
 
-The Edge Function is at `supabase/functions/customer-communications/index.ts`. It verifies the signed-in user and looks up the destination from the customer's saved record in that company's workspace.
-
-Configure these secrets in Supabase for project `uxsndyiyqttnrdeanhli`:
-
-**Email via Resend**
-- `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL` — a sender/domain verified in Resend.
-
-**SMS via Twilio**
-- `TWILIO_ACCOUNT_SID`
-- `TWILIO_AUTH_TOKEN`
-- `TWILIO_FROM_NUMBER` — a Twilio-enabled sender.
-
-The Edge Function deploys through GitHub Actions. Email/SMS remain unavailable until the corresponding provider is configured. The CRM now records explicit SMS consent on each customer; SMS is blocked unless that consent is checked. Send only messages the customer expects or has agreed to receive, and honor opt-outs.
-
-Every outbound SMS now identifies Legendary Cleaners and includes “Reply STOP to unsubscribe”; the Edge Function still blocks SMS unless the customer has explicitly opted in. Twilio's opt-out handling and the business's A2P/toll-free sender registration must also be configured as applicable.
-
-The current response means the provider accepted the request, not that the message reached the customer's inbox or phone. Provider delivery-status webhooks and final delivery tracking are not implemented yet.
-
-### Use the old iPhone for customer messages
-The Customer Communication screen also has a **This iPhone (open Messages / Mail)** option. On the iPhone, it opens the native Messages app with the customer's phone number and text filled in, or Mail with the recipient, subject, and email body filled in. The user must review the draft and tap Send. A prepared draft is recorded as a draft, not as a sent or delivered message. SMS still requires recorded customer consent. This does not require Twilio or Resend, but it is a manual send workflow and will not send while the CRM is closed.
-
-The separate **Connected cloud provider** option is for background/provider sending and still requires the Resend or Twilio secrets listed above. Provider acceptance is not proof of final delivery.
+The entire Customer Communication screen has been removed from the CRM, including SMS, email, message composition, provider sending, and message-history views. Customer phone numbers and email addresses remain part of customer records. Existing message-history data and the legacy Supabase `customer-communications` function have been left untouched; this UI change does not delete stored data or modify backend services.
 
 ## 4. Route Planner and Activity Log
 
@@ -57,9 +35,7 @@ After setting up the items above:
 - Make a harmless test job edit and confirm it saves and appears on another device.
 - Test existing push notifications and the one-hour reminder path separately. The primary one-hour reminder schedule is Supabase Cron every minute; GitHub Actions remains a five-minute backup.
 - Test a customer portal link with a test customer before sharing it.
-- Record SMS consent on the customer record before sending any text.
 - Test document upload/open with two different company memberships to check company isolation.
-- Send provider test messages only after provider credentials, sender verification, and customer consent/opt-out handling are ready.
 
 Existing auth, employee invite logic, workspace data, and push-notification code were not intentionally changed by the business-tools UI work.
 

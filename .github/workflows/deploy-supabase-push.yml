@@ -44,7 +44,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           REMINDER_CRON_SECRET: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          supabase secrets set "REMINDER_CRON_SECRET=$REMINDER_CRON_SECRET" --project-ref uxsndyiyqttnrdeanhli
+          supabase secrets set "REMINDER_CRON_SECRET=$REMINDER_CRON_SECRET" --project-ref uxsndyiyqttnrdeanhli --yes
 
       - name: Deploy Supabase Edge Functions (retry transient registry/network errors)
         env:

@@ -9,6 +9,7 @@ on:
       - "supabase/functions/contract-scheduling-assistant/**"
       - "supabase/functions/business-assistant/**"
       - "supabase/functions/customer-communications/**"
+      - "supabase/functions/customer-portal/**"
       - "supabase/migrations/**"
       - ".github/workflows/deploy-supabase-push.yml"
   workflow_dispatch:
@@ -72,3 +73,4 @@ jobs:
           deploy_with_retry contract-scheduling-assistant
           deploy_with_retry business-assistant
           deploy_with_retry customer-communications
+          deploy_with_retry customer-portal

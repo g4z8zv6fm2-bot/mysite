@@ -257,7 +257,7 @@ function printEstimate(id){const e=db.estimates.find(x=>x.id===id);if(!e)return;
 function prepareEstimateEmail(id){
  const e=db.estimates.find(x=>x.id===id);if(!e)return;if(!e.email){alert('Add the customer email address by editing this estimate first.');return}
  const subject=encodeURIComponent('Window Cleaning Estimate - Legendary Cleaners');
- const body=encodeURIComponent('Hello '+e.customerName+',\n\nThank you for considering Legendary Cleaners. Here is your window-cleaning estimate:\n\nAddress: '+e.address+'\nHome: '+(e.stories==='2'?'2-story':'1-story')+'\nWindows: '+e.windowCount+'\nScreens: '+e.screenCount+'\nTracks: '+e.trackCount+'\n'+(e.notes?'Notes: '+e.notes+'\n':'')+'Estimated total: '+estimateMoney(e.total)+'\n\nPlease reply if you have any questions.\n\nLegendary Cleaners\n859-835-0534\nWindows So Clean, Birds Panic.');
+ const body=encodeURIComponent('Hello '+e.customerName+',\n\nThank you for considering Legendary Cleaners. Here is your window-cleaning estimate:\n\nAddress: '+e.address+'\n1-story windows: '+Number(e.oneStoryWindowCount??(e.stories==='1'?e.windowCount:0))+'\n2-story windows: '+Number(e.twoStoryWindowCount??(e.stories==='2'?e.windowCount:0))+'\nScreens: '+e.screenCount+'\nTracks: '+e.trackCount+'\n'+(e.notes?'Notes: '+e.notes+'\n':'')+'Estimated total: '+estimateMoney(e.total)+'\n\nPlease reply if you have any questions.\n\nLegendary Cleaners\n859-835-0534\nWindows So Clean, Birds Panic.');
  window.location.href='mailto:'+encodeURIComponent(e.email)+'?subject='+subject+'&body='+body;
 }
 function convertEstimateToJob(id){

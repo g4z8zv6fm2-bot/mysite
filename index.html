@@ -232,7 +232,8 @@ function enforceEmployeeShell(){
  const menu=document.getElementById('menuToggle'),drawer=document.getElementById('dashboardDrawer'),backdrop=document.getElementById('drawerBackdrop'),nav=document.getElementById('nav');
  [menu,drawer,backdrop].forEach(el=>{if(el){el.hidden=true;el.setAttribute('aria-hidden','true');el.style.setProperty('display','none','important');el.style.setProperty('visibility','hidden','important');el.style.setProperty('pointer-events','none','important')}});
  if(nav){
-  nav.innerHTML='<button data-tab="home" onclick="setTab(\\'home\\')">⌂ Home</button><button data-tab="schedule" onclick="setTab(\\'schedule\\')">▦ Schedule</button><button data-tab="estimates" onclick="setTab(\\'estimates\\')">▤ Quotes &amp; Estimates</button><button data-tab="my-pay" onclick="setTab(\\'my-pay\\')">＄ My Hours &amp; Pay</button>';
+  nav.innerHTML='<button data-tab="home">⌂ Home</button><button data-tab="schedule">▦ Schedule</button><button data-tab="estimates">▤ Quotes &amp; Estimates</button><button data-tab="my-pay">＄ My Hours &amp; Pay</button>';
+  nav.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>setTab(button.dataset.tab)));
  }
 }
 function render(){

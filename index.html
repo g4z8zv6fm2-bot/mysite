@@ -45,8 +45,13 @@ html,body,button,a,input,select,textarea{touch-action:manipulation}
 /* Employee accounts must never expose owner navigation, even if another script changes inline styles. */
 body.employee-mode #menuToggle,
 body.employee-mode #dashboardDrawer,
-body.employee-mode #drawerBackdrop{display:none!important;visibility:hidden!important;pointer-events:none!important}
+body.employee-mode #drawerBackdrop,
+body.employee-mode .dashboard-drawer,
+body.employee-mode .drawer-backdrop{display:none!important;visibility:hidden!important;pointer-events:none!important}
 body.employee-mode #nav button:not([data-tab="home"]):not([data-tab="schedule"]):not([data-tab="estimates"]):not([data-tab="my-pay"]){display:none!important}
+body.employee-mode #nav{display:flex!important}
+body.employee-mode #appShell.drawer-open #dashboardDrawer{display:none!important}
+body.employee-mode #appShell.drawer-open #drawerBackdrop{display:none!important}
 </style>
 </head>
 <body>
@@ -138,7 +143,7 @@ async function activateUser(user){
    if(accountRole==='Owner'&&cloudEmpty&&localHasRecords){db=localBackup;normalizeDb();await syncWorkspaceNow()}
  }else{db=localBackup||{jobs:[],customers:[],team:[],tab:'home'};normalizeDb();await syncWorkspaceNow()}
  normalizeDb();lastSyncedJobs=JSON.stringify(db.jobs||[]);const email=String(user.email||'').trim().toLowerCase();const fullName=String(profile.full_name||user.user_metadata?.full_name||user.user_metadata?.name||email.split('@')[0]||'Employee').trim();let teamMatch=db.team.find(m=>String(m.email||'').trim().toLowerCase()===email)||db.team.find(m=>String(m.name||'').trim().toLowerCase()===fullName.toLowerCase());currentEmployeeName=teamMatch?.name||fullName;if(email&&!teamMatch){db.team.push({id:'account-'+String(user.id||email).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80),name:fullName,role:accountRole,phone:'',email});save()}
- localStorage.setItem(getDbKey(),JSON.stringify(db));$('#authScreen').style.display='none';$('#appShell').classList.remove('hidden');$('#accountBar').style.display='block';$('#welcome').textContent='Welcome '+fullName+'.';applyRoleNavigation();if(accountRole!=='Owner')await loadMyPayroll();setSyncStatus('Connected');render();checkUpcomingJobReminders();syncAllContractVisits();
+ localStorage.setItem(getDbKey(),JSON.stringify(db));$('#authScreen').style.display='none';$('#appShell').classList.remove('hidden');$('#accountBar').style.display='block';$('#welcome').textContent='Welcome '+fullName+'.';applyRoleNavigation();if(accountRole!=='Owner')await loadMyPayroll();setSyncStatus('Connected');render();if(accountRole!=='Owner')enforceEmployeeShell();checkUpcomingJobReminders();syncAllContractVisits();
  if(workspaceChannel){try{await supabaseClient.removeChannel(workspaceChannel)}catch(_){}}
  workspaceChannel=supabaseClient.channel('lc-workspace-'+companyId).on('postgres_changes',{event:'*',schema:'public',table:'crm_workspaces',filter:'company_id=eq.'+companyId},payload=>{if(payload.new&&payload.new.data&&payload.new.updated_by!==currentUser?.id){db=payload.new.data;normalizeDb();lastSyncedJobs=JSON.stringify(db.jobs||[]);try{localStorage.setItem(getDbKey(),JSON.stringify(db))}catch(_){};setSyncStatus('Updated from cloud');render()}}).subscribe();
 }
@@ -220,7 +225,18 @@ function renderEmployeeEstimatesView(app){
  const rows=[...(db.estimates||[])].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
  app.innerHTML='<div class="topline"><div><h2>Quotes &amp; estimates</h2><p class="muted">View saved customer quotes. Pricing and quote editing are owner-only.</p></div></div>'+(rows.length?rows.map(e=>'<article class="card"><div class="row"><div><h3>'+escapeHtml(e.customerName||'Customer')+'</h3><div class="muted">'+escapeHtml(e.address||'')+' · '+escapeHtml(e.createdAt?new Date(e.createdAt).toLocaleDateString():'')+'</div></div><b>'+estimateMoney(e.total)+'</b></div><p class="muted">'+(e.stories==='2'?'2-story':e.stories==='mixed'?'Mixed stories':'1-story')+' · '+(Number(e.windowCount)||0)+' windows · '+(Number(e.screenCount)||0)+' screens · '+(Number(e.trackCount)||0)+' tracks</p><span class="pill '+(e.status==='Approved'?'':'scheduled')+'">'+escapeHtml(e.status||'Draft')+'</span><div class="actions"><button class="small secondary" data-id="'+escapeHtml(e.id)+'" onclick="printEstimate(this.dataset.id)">View / Print estimate</button></div></article>').join(''):'<div class="card empty">No saved quotes or estimates yet.</div>');
 }
+function enforceEmployeeShell(){
+ if(String(accountRole||'').trim().toLowerCase()==='owner')return;
+ document.body.classList.add('employee-mode');
+ document.body.classList.remove('drawer-open');
+ const menu=document.getElementById('menuToggle'),drawer=document.getElementById('dashboardDrawer'),backdrop=document.getElementById('drawerBackdrop'),nav=document.getElementById('nav');
+ [menu,drawer,backdrop].forEach(el=>{if(el){el.hidden=true;el.setAttribute('aria-hidden','true');el.style.setProperty('display','none','important');el.style.setProperty('visibility','hidden','important');el.style.setProperty('pointer-events','none','important')}});
+ if(nav){
+  nav.innerHTML='<button data-tab="home" onclick="setTab(\\'home\\')">⌂ Home</button><button data-tab="schedule" onclick="setTab(\\'schedule\\')">▦ Schedule</button><button data-tab="estimates" onclick="setTab(\\'estimates\\')">▤ Quotes &amp; Estimates</button><button data-tab="my-pay" onclick="setTab(\\'my-pay\\')">＄ My Hours &amp; Pay</button>';
+ }
+}
 function render(){
+ if(String(accountRole||'').trim().toLowerCase()!=='owner')enforceEmployeeShell();
  const app=$('#app'),today=isoToday(),weekStart=new Date();weekStart.setDate(weekStart.getDate()-6);const weekISO=weekStart.toISOString().slice(0,10);
  if(accountRole!=='Owner'){
   if(!['home','schedule','estimates','my-pay'].includes(tab))tab='home';

@@ -235,7 +235,7 @@ function updateEstimatePreview(){
  const values=Object.fromEntries(new FormData(f)),total=quoteTotal(values),p=db.pricingSettings||{};
  const out=document.getElementById('estimateLiveTotal'),detail=document.getElementById('estimateBreakdown');
  if(out)out.textContent=estimateMoney(total);
- if(detail)detail.textContent=p.configured?(values.oneStoryWindowCount||0)+' one-story windows × 
+ if(detail)detail.textContent=p.configured?(values.oneStoryWindowCount||0)+' one-story windows × $'+(Number(p.perWindow1Story)||0)+' · '+(values.twoStoryWindowCount||0)+' two-story windows × $'+(Number(p.perWindow2Story)||0)+' · '+(values.screenCount||0)+' screens · '+(values.trackCount||0)+' tracks':'Set and save your pricing to calculate an estimate.';
 }
 function saveEstimateForm(event){
  if(!db.pricingSettings?.configured){alert('Please save your pricing first.');return}

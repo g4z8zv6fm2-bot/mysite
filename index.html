@@ -193,8 +193,8 @@ function render(){
 
 function estimateMoney(value){return fmtMoney(Number(value)||0)}
 function quoteTotal(values){
- const p=db.pricingSettings||{},windows=Math.max(0,Number(values.windowCount)||0),screens=Math.max(0,Number(values.screenCount)||0),tracks=Math.max(0,Number(values.trackCount)||0),extra=Math.max(0,Number(values.extraFee)||0);
- const rate=values.stories==='2'?Number(p.perWindow2Story):Number(p.perWindow1Story);const raw=windows*(Number.isFinite(rate)?rate:0)+screens*(Number(p.screenPrice)||0)+tracks*(Number(p.trackPrice)||0)+extra;
+ const p=db.pricingSettings||{},one=Math.max(0,Number(values.oneStoryWindowCount??(values.stories==='1'?values.windowCount:0))||0),two=Math.max(0,Number(values.twoStoryWindowCount??(values.stories==='2'?values.windowCount:0))||0),screens=Math.max(0,Number(values.screenCount)||0),tracks=Math.max(0,Number(values.trackCount)||0),extra=Math.max(0,Number(values.extraFee)||0);
+ const raw=one*(Number(p.perWindow1Story)||0)+two*(Number(p.perWindow2Story)||0)+screens*(Number(p.screenPrice)||0)+tracks*(Number(p.trackPrice)||0)+extra;
  return Math.max(raw,Number(p.minimum)||0);
 }
 function renderEstimatesView(app){
@@ -212,14 +212,14 @@ function renderEstimatesView(app){
 function estimateForm(existingId){
  const old=existingId?db.estimates.find(x=>x.id===existingId):null;if(existingId&&!old)return;
  const customerOptions=db.customers.map(c=>'<option value="'+escapeHtml(c.id)+'" '+(old?.customerId===c.id?'selected':'')+'>'+escapeHtml(c.name)+' — '+escapeHtml(c.address||'')+'</option>').join('');
- const v=old||{customerId:'',customerName:'',email:'',phone:'',address:'',stories:'1',windowCount:0,screenCount:0,trackCount:0,extraFee:0,notes:''};
+ const v=old?{...old,oneStoryWindowCount:old.oneStoryWindowCount??(old.stories==='1'?(old.windowCount||0):0),twoStoryWindowCount:old.twoStoryWindowCount??(old.stories==='2'?(old.windowCount||0):0)}:{customerId:'',customerName:'',email:'',phone:'',address:'',oneStoryWindowCount:0,twoStoryWindowCount:0,screenCount:0,trackCount:0,extraFee:0,notes:''};
  $('#app').innerHTML='<div class="topline"><h2>'+(old?'Edit estimate':'New estimate')+'</h2><button class="secondary" onclick="setTab(\'estimates\')">Cancel</button></div>'+
  (!db.pricingSettings?.configured?'<div class="notice">Set your prices in Quotes &amp; Estimates before creating a quote.</div>':'')+
  '<form class="card" id="estimateForm"><label>Use saved customer (optional)</label><select name="customerId" onchange="applyEstimateCustomer(this.value)"><option value="">Enter customer details below</option>'+customerOptions+'</select>'+
  '<label>Customer name</label><input name="customerName" required maxlength="100" value="'+escapeHtml(v.customerName)+'">'+
  '<div class="formgrid"><div><label>Email</label><input name="email" type="email" value="'+escapeHtml(v.email||'')+'"></div><div><label>Phone</label><input name="phone" type="tel" value="'+escapeHtml(v.phone||'')+'"></div></div>'+
  '<label>Service address</label><input name="address" required value="'+escapeHtml(v.address||'')+'">'+
- '<div class="formgrid"><div><label>Home size</label><select name="stories" oninput="updateEstimatePreview()"><option value="1" '+(v.stories==='1'?'selected':'')+'>1 story</option><option value="2" '+(v.stories==='2'?'selected':'')+'>2 stories</option></select></div><div><label>Number of windows</label><input name="windowCount" type="number" min="0" step="1" required value="'+v.windowCount+'" oninput="updateEstimatePreview()"></div><div><label>Number of screens</label><input name="screenCount" type="number" min="0" step="1" value="'+v.screenCount+'" oninput="updateEstimatePreview()"></div><div><label>Number of tracks</label><input name="trackCount" type="number" min="0" step="1" value="'+v.trackCount+'" oninput="updateEstimatePreview()"></div></div>'+
+ '<div class="formgrid"><div><label>Number of 1-story windows ($'+(db.pricingSettings.perWindow1Story??15)+' each)</label><input name="oneStoryWindowCount" type="number" min="0" step="1" required value="'+v.oneStoryWindowCount+'" oninput="updateEstimatePreview()"></div><div><label>Number of 2-story windows ($'+(db.pricingSettings.perWindow2Story??20)+' each)</label><input name="twoStoryWindowCount" type="number" min="0" step="1" required value="'+v.twoStoryWindowCount+'" oninput="updateEstimatePreview()"></div><div><label>Number of screens</label><input name="screenCount" type="number" min="0" step="1" value="'+v.screenCount+'" oninput="updateEstimatePreview()"></div><div><label>Number of tracks</label><input name="trackCount" type="number" min="0" step="1" value="'+v.trackCount+'" oninput="updateEstimatePreview()"></div></div>'+
  '<label>Extra charge, if needed ($)</label><input name="extraFee" type="number" min="0" step="0.01" value="'+(v.extraFee||0)+'" oninput="updateEstimatePreview()">'+
  '<label>Notes for the customer</label><textarea name="notes" rows="3" placeholder="Optional details about the service">'+escapeHtml(v.notes||'')+'</textarea>'+
  '<div class="revenuebig" style="margin-top:14px"><small>Estimated total</small><strong id="estimateLiveTotal">$0.00</strong><small id="estimateBreakdown">Enter the job details to calculate the price.</small></div>'+
@@ -235,23 +235,23 @@ function updateEstimatePreview(){
  const values=Object.fromEntries(new FormData(f)),total=quoteTotal(values),p=db.pricingSettings||{};
  const out=document.getElementById('estimateLiveTotal'),detail=document.getElementById('estimateBreakdown');
  if(out)out.textContent=estimateMoney(total);
- if(detail)detail.textContent=p.configured?(values.windowCount||0)+' windows · '+(values.stories==='2'?'2-story fee included':'1-story')+' · '+(values.screenCount||0)+' screens · '+(values.trackCount||0)+' tracks':'Set and save your pricing to calculate an estimate.';
+ if(detail)detail.textContent=p.configured?(values.oneStoryWindowCount||0)+' one-story windows × $'+(Number(p.perWindow1Story)||0)+' · '+(values.twoStoryWindowCount||0)+' two-story windows × $'+(Number(p.perWindow2Story)||0)+' · '+(values.screenCount||0)+' screens · '+(values.trackCount||0)+' tracks':'Set and save your pricing to calculate an estimate.';
 }
 function saveEstimateForm(event){
  if(!db.pricingSettings?.configured){alert('Please save your pricing first.');return}
  const f=event.target,values=Object.fromEntries(new FormData(f));
- for(const k of ['windowCount','screenCount','trackCount']){values[k]=Math.max(0,Math.floor(Number(values[k])||0))}
+ for(const k of ['oneStoryWindowCount','twoStoryWindowCount','screenCount','trackCount']){values[k]=Math.max(0,Math.floor(Number(values[k])||0))}values.windowCount=values.oneStoryWindowCount+values.twoStoryWindowCount;values.stories=values.oneStoryWindowCount&&values.twoStoryWindowCount?'mixed':values.twoStoryWindowCount?'2':'1';
  values.extraFee=Math.max(0,Number(values.extraFee)||0);
  if(!values.customerName.trim()||!values.address.trim()){alert('Please enter the customer name and service address.');return}
  const total=quoteTotal(values),id=f.dataset.editId||crypto.randomUUID(),existing=db.estimates.find(x=>x.id===id);
- const estimate={...(existing||{}),id,customerId:values.customerId||null,customerName:values.customerName.trim(),email:values.email.trim(),phone:values.phone.trim(),address:values.address.trim(),stories:values.stories,windowCount:values.windowCount,screenCount:values.screenCount,trackCount:values.trackCount,extraFee:values.extraFee,notes:values.notes.trim(),total,status:existing?.status||'Draft',createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const estimate={...(existing||{}),id,customerId:values.customerId||null,customerName:values.customerName.trim(),email:values.email.trim(),phone:values.phone.trim(),address:values.address.trim(),stories:values.stories,oneStoryWindowCount:values.oneStoryWindowCount,twoStoryWindowCount:values.twoStoryWindowCount,windowCount:values.windowCount,screenCount:values.screenCount,trackCount:values.trackCount,extraFee:values.extraFee,notes:values.notes.trim(),total,status:existing?.status||'Draft',createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
  if(existing)db.estimates=db.estimates.map(x=>x.id===id?estimate:x);else db.estimates.unshift(estimate);
  save();setTab('estimates');
 }
 function setEstimateStatus(id,status){const e=db.estimates.find(x=>x.id===id);if(!e)return;e.status=status;e.updatedAt=new Date().toISOString();save();render()}
 function deleteEstimate(id){if(!confirm('Delete this estimate?'))return;db.estimates=db.estimates.filter(x=>x.id!==id);save();render()}
 function estimateDocument(e){
- return '<div style="font-family:Arial,sans-serif;max-width:760px;margin:32px auto;color:#172235"><div style="background:#101d32;color:white;padding:24px;border-radius:12px"><h1 style="margin:0">LEGENDARY CLEANERS</h1><p style="margin:8px 0 0">WINDOW CLEANING ESTIMATE · 859-835-0534</p></div><h2>Estimate for '+escapeHtml(e.customerName)+'</h2><p>'+escapeHtml(e.address)+'<br>'+escapeHtml(e.email||'')+'</p><hr><p>'+(e.stories==='2'?'Two-story':'One-story')+' home · '+e.windowCount+' windows · '+e.screenCount+' screens · '+e.trackCount+' tracks</p>'+(e.notes?'<p>'+escapeHtml(e.notes)+'</p>':'')+'<h2 style="text-align:right">Estimated total: '+estimateMoney(e.total)+'</h2><p style="color:#68768a">This estimate is based on the details provided and may change if the service requirements are different on arrival.</p><p>Thank you for considering Legendary Cleaners!</p></div>';
+ return '<div style="font-family:Arial,sans-serif;max-width:760px;margin:32px auto;color:#172235"><div style="background:#101d32;color:white;padding:24px;border-radius:12px"><h1 style="margin:0">LEGENDARY CLEANERS</h1><p style="margin:8px 0 0">WINDOW CLEANING ESTIMATE · 859-835-0534</p></div><h2>Estimate for '+escapeHtml(e.customerName)+'</h2><p>'+escapeHtml(e.address)+'<br>'+escapeHtml(e.email||'')+'</p><hr><p>'+Number(e.oneStoryWindowCount??(e.stories==='1'?e.windowCount:0))+' one-story windows · '+Number(e.twoStoryWindowCount??(e.stories==='2'?e.windowCount:0))+' two-story windows · '+e.screenCount+' screens · '+e.trackCount+' tracks</p>'+(e.notes?'<p>'+escapeHtml(e.notes)+'</p>':'')+'<h2 style="text-align:right">Estimated total: '+estimateMoney(e.total)+'</h2><p style="color:#68768a">This estimate is based on the details provided and may change if the service requirements are different on arrival.</p><p>Thank you for considering Legendary Cleaners!</p></div>';
 }
 function printEstimate(id){const e=db.estimates.find(x=>x.id===id);if(!e)return;const w=window.open('','_blank');if(!w){alert('Please allow pop-ups to print this estimate.');return}w.document.write('<!doctype html><html><head><title>Legendary Cleaners Estimate</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>'+estimateDocument(e)+'</body></html>');w.document.close();w.focus();setTimeout(()=>w.print(),300)}
 function prepareEstimateEmail(id){

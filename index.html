@@ -356,7 +356,7 @@ function prepareEstimateEmail(id){
 function convertEstimateToJob(id){
  const e=db.estimates.find(x=>x.id===id);if(!e||e.status!=='Approved')return;
  const date=prompt('What date should the job be scheduled? Use YYYY-MM-DD.',isoToday());if(!date)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Please use YYYY-MM-DD for the date.');return}
- const time=prompt('What start time should the job use? Enter 24-hour time like 09:00.','09:00');if(time===null)return;if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(time)){alert('Enter the time as HH:MM, such as 09:00 or 14:30.');return}
+ const time=prompt('What start time should the job use? Enter 24-hour time like 09:00.','09:00');if(time===null)return;if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)){alert('Enter the time as HH:MM, such as 09:00 or 14:30.');return}
  const names=db.team.filter(m=>m.role!=='Owner').map(m=>m.name);const assignee=prompt('Who should do this job? Enter an employee name, or Owner.\nTeam: '+names.join(', '),'Owner');if(assignee===null)return;const assigned=assignee.trim()||'Owner';if(assigned.toLowerCase()!=='owner'&&!names.some(n=>n.toLowerCase()===assigned.toLowerCase())){alert('Choose Owner or an employee name from the Team list.');return}
  if(hasScheduleConflict(date,time,assigned)&&!confirm('Schedule warning: '+assigned+' already has a job at this exact time. Schedule anyway?'))return;
  db.jobs.push({id:crypto.randomUUID(),customerId:e.customerId||null,name:e.customerName,address:e.address,date,time,price:e.total,status:'Scheduled',assignee:assigned,estimateId:e.id,oneStoryWindowCount:e.oneStoryWindowCount||0,twoStoryWindowCount:e.twoStoryWindowCount||0,screenCount:e.screenCount||0,trackCount:e.trackCount||0,notes:e.notes||'',checklist:defaultJobChecklist()});

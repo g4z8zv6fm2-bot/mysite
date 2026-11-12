@@ -267,7 +267,7 @@ function convertEstimateToJob(id){
  const e=db.estimates.find(x=>x.id===id);if(!e||e.status!=='Approved')return;
  const date=prompt('What date should the job be scheduled? Use YYYY-MM-DD.',isoToday());if(!date)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Please use YYYY-MM-DD for the date.');return}
  const time=prompt('What time should the job start? Use a time such as 9:00 AM.','9:00 AM');if(time===null)return;
- db.jobs.push({id:crypto.randomUUID(),name:e.customerName,address:e.address,date,time,price:e.total,status:'Scheduled',assignee:'Owner',estimateId:e.id});
+ db.jobs.push({id:crypto.randomUUID(),customerId:e.customerId||null,name:e.customerName,address:e.address,date,time,price:e.total,status:'Scheduled',assignee:'Owner',estimateId:e.id});
  e.status='Scheduled';e.updatedAt=new Date().toISOString();save();setTab('schedule');
 }
 
@@ -435,7 +435,7 @@ function newJob(existing={}){const customers=db.customers,matched=existing.custo
  $('#jobForm').onsubmit=e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));data.price=Number(data.price);if(existing.id){db.jobs=db.jobs.map(j=>j.id===existing.id?{...j,...data}:j)}else db.jobs.push({id:crypto.randomUUID(),...data});save();setTab('schedule')}}
 function applyJobCustomer(id){const c=db.customers.find(x=>x.id===id),f=document.getElementById('jobForm');if(!c||!f)return;f.elements.name.value=c.name;f.elements.address.value=c.address||'';const recent=(db.estimates||[]).filter(e=>e.customerId===id).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''))[0];if(recent)f.elements.price.value=recent.total;else if(c.propertyProfile?.lastQuotedPrice)f.elements.price.value=c.propertyProfile.lastQuotedPrice}
 function editJob(id){let j=db.jobs.find(j=>j.id===id);if(j)newJob(j)}
-function completeJob(id){db.jobs=db.jobs.map(j=>j.id===id?{...j,status:'Completed'}:j);save();render()}
+function completeJob(id){const job=db.jobs.find(j=>j.id===id);db.jobs=db.jobs.map(j=>j.id===id?{...j,status:'Completed'}:j);if(job){const customer=db.customers.find(c=>c.id===job.customerId||(c.name===job.name&&c.address===job.address));if(customer){customer.propertyProfile={...(customer.propertyProfile||{}),lastCleaningDate:job.date||isoToday()}}}save();render()}
 function deleteJob(id){if(confirm('Delete this job?')){db.jobs=db.jobs.filter(j=>j.id!==id);selectedJobIds=selectedJobIds.filter(x=>x!==id);save();render()}}
 function toggleJobSelection(id,checked){selectedJobIds=checked?[...new Set([...selectedJobIds,id])]:selectedJobIds.filter(x=>x!==id);const n=document.getElementById('jobSelectionCount');if(n)n.textContent=selectedJobIds.length+' selected';const b=document.querySelector('.bulk-tools button.danger');if(b)b.disabled=!selectedJobIds.length}
 function selectVisibleJobs(checked){const visible=[...document.querySelectorAll('.bulk-check input')].map(x=>x.getAttribute('onchange').match(/toggleJobSelection\('([^']+)'/)?.[1]).filter(Boolean);selectedJobIds=checked?[...new Set([...selectedJobIds,...visible])]:selectedJobIds.filter(id=>!visible.includes(id));render()}

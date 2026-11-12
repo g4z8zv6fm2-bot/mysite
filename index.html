@@ -162,7 +162,8 @@ function applyRoleNavigation(){
  if(backdrop)backdrop.style.display=owner?'block':'none';
  if(!owner){
   document.body.classList.remove('drawer-open');
-  nav.innerHTML='<button data-tab="home" onclick="setTab(this.dataset.tab)">⌂ Home</button><button data-tab="schedule" onclick="setTab(this.dataset.tab)">▦ Schedule</button><button data-tab="estimates" onclick="setTab(this.dataset.tab)">▤ Quotes &amp; Estimates</button><button data-tab="my-pay" onclick="setTab(this.dataset.tab)">＄ My Hours &amp; Pay</button>';setTab(\'home\')"><span class="ico">⌂</span>Home</button><button data-tab="schedule" onclick="search=\'\';setTab(\'schedule\')"><span class="ico">▦</span>My Jobs</button><button data-tab="my-pay" onclick="setTab(\'my-pay\')"><span class="ico">＄</span>My Pay</button>';
+  nav.innerHTML='<button data-tab="home" onclick="setTab(this.dataset.tab)">⌂ Home</button><button data-tab="schedule" onclick="setTab(this.dataset.tab)">▦ Schedule</button><button data-tab="estimates" onclick="setTab(this.dataset.tab)">▤ Quotes &amp; Estimates</button><button data-tab="my-pay" onclick="setTab(this.dataset.tab)">＄ My Hours &amp; Pay</button>';
+  setTab('home');
  }else{
   nav.innerHTML='<button data-tab="home" class="active"><span class="ico">⌂</span>Home</button><button data-tab="schedule"><span class="ico">▦</span>Schedule</button>';
   nav.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{search='';setTab(b.dataset.tab);document.querySelectorAll('[data-drawer-tab]').forEach(x=>x.classList.toggle('active',x.dataset.drawerTab===b.dataset.tab))}));

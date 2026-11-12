@@ -58,6 +58,7 @@ html,body,button,a,input,select,textarea{touch-action:manipulation}
 <button class="drawer-link" data-drawer-tab="team"><span class="ico">♧</span>Team</button>
 <button class="drawer-link" data-drawer-tab="revenue"><span class="ico">＄</span>Revenue</button>
 <button class="drawer-link" data-drawer-tab="business"><span class="ico">▦</span>Business center</button>
+<button class="drawer-link" data-drawer-tab="payroll"><span class="ico">＄</span>Payroll &amp; pay periods</button>
 <div class="drawer-label">Preferences</div>
 <button class="drawer-link" data-drawer-tab="settings"><span class="ico">⚙</span>Settings &amp; notifications</button>
 <p class="muted" style="font-size:12px;line-height:1.5;padding:0 12px">Manage push alerts and job reminders here.</p>
@@ -75,6 +76,7 @@ html,body,button,a,input,select,textarea{touch-action:manipulation}
 window.addEventListener('error',function(ev){try{const r=document.getElementById('authScreen');if(r&&r.style.display!=='none'&&ev.message){const n=r.querySelector('[role="status"]');if(n)n.textContent='App startup error: '+ev.message+' — refresh the page and check that all files were uploaded together.';}}catch(_){}});
 const $=s=>document.querySelector(s);
 let currentUser=null, authMode="login", supabaseClient=null, companyId=null, accountRole="Employee", workspaceChannel=null, saveTimer=null, lastSyncedJobs=null;
+let currentEmployeeName="",myPayrollRows=[],payrollProfiles=[],payrollRates={},payrollRows=[];
 const getDbKey=()=>`legendaryCRM_user_${currentUser?.id||"signed-out"}`;
 function localMode(){return !(window.LC_SUPABASE_URL&&window.LC_SUPABASE_ANON_KEY&&!String(window.LC_SUPABASE_URL).includes('YOUR_')&&!String(window.LC_SUPABASE_ANON_KEY).includes('YOUR_'))}
 async function passwordDigest(password){
@@ -129,12 +131,12 @@ async function activateUser(user){
    const localHasRecords=localBackup&&((localBackup.jobs||[]).length||(localBackup.customers||[]).length||(localBackup.team||[]).length>1);
    if(accountRole==='Owner'&&cloudEmpty&&localHasRecords){db=localBackup;normalizeDb();await syncWorkspaceNow()}
  }else{db=localBackup||{jobs:[],customers:[],team:[],tab:'home'};normalizeDb();await syncWorkspaceNow()}
- normalizeDb();lastSyncedJobs=JSON.stringify(db.jobs||[]);const email=String(user.email||'').trim().toLowerCase();const fullName=String(profile.full_name||user.user_metadata?.full_name||user.user_metadata?.name||email.split('@')[0]||'Employee').trim();if(email&&!db.team.some(m=>String(m.email||'').trim().toLowerCase()===email)){db.team.push({id:'account-'+String(user.id||email).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80),name:fullName,role:accountRole,phone:'',email});save()}
- localStorage.setItem(getDbKey(),JSON.stringify(db));$('#authScreen').style.display='none';$('#appShell').classList.remove('hidden');$('#accountBar').style.display='block';$('#welcome').textContent='Welcome '+fullName+'.';setSyncStatus('Connected');render();checkUpcomingJobReminders();syncAllContractVisits();
+ normalizeDb();lastSyncedJobs=JSON.stringify(db.jobs||[]);const email=String(user.email||'').trim().toLowerCase();const fullName=String(profile.full_name||user.user_metadata?.full_name||user.user_metadata?.name||email.split('@')[0]||'Employee').trim();let teamMatch=db.team.find(m=>String(m.email||'').trim().toLowerCase()===email)||db.team.find(m=>String(m.name||'').trim().toLowerCase()===fullName.toLowerCase());currentEmployeeName=teamMatch?.name||fullName;if(email&&!teamMatch){db.team.push({id:'account-'+String(user.id||email).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80),name:fullName,role:accountRole,phone:'',email});save()}
+ localStorage.setItem(getDbKey(),JSON.stringify(db));$('#authScreen').style.display='none';$('#appShell').classList.remove('hidden');$('#accountBar').style.display='block';$('#welcome').textContent='Welcome '+fullName+'.';applyRoleNavigation();if(accountRole!=='Owner')await loadMyPayroll();setSyncStatus('Connected');render();checkUpcomingJobReminders();syncAllContractVisits();
  if(workspaceChannel){try{await supabaseClient.removeChannel(workspaceChannel)}catch(_){}}
  workspaceChannel=supabaseClient.channel('lc-workspace-'+companyId).on('postgres_changes',{event:'*',schema:'public',table:'crm_workspaces',filter:'company_id=eq.'+companyId},payload=>{if(payload.new&&payload.new.data&&payload.new.updated_by!==currentUser?.id){db=payload.new.data;normalizeDb();lastSyncedJobs=JSON.stringify(db.jobs||[]);try{localStorage.setItem(getDbKey(),JSON.stringify(db))}catch(_){};setSyncStatus('Updated from cloud');render()}}).subscribe();
 }
-async function signOutUser(){if(workspaceChannel&&supabaseClient){await supabaseClient.removeChannel(workspaceChannel);workspaceChannel=null}if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;companyId=null;lastSyncedJobs=null;accountRole='Employee';authMode='login';showAuth('You have been signed out.')}
+async function signOutUser(){if(workspaceChannel&&supabaseClient){await supabaseClient.removeChannel(workspaceChannel);workspaceChannel=null}if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;companyId=null;lastSyncedJobs=null;accountRole='Employee';currentEmployeeName='';myPayrollRows=[];authMode='login';showAuth('You have been signed out.')}
 async function initAuth(){const url=window.LC_SUPABASE_URL,key=window.LC_SUPABASE_ANON_KEY;if(!url||!key||String(url).includes('YOUR_')||String(key).includes('YOUR_')){showAuth();return}if(!window.supabase){showAuth('Authentication library did not load. Check your internet connection and reload.');return}supabaseClient=window.supabase.createClient(url,key);const {data:{session},error}=await supabaseClient.auth.getSession();if(error){showAuth('Supabase session error: '+error.message);return}if(session?.user){await activateUser(session.user)}else showAuth();supabaseClient.auth.onAuthStateChange(async(event,session)=>{if(event==='SIGNED_IN'&&session?.user&&currentUser?.id!==session.user.id)await activateUser(session.user);if(event==='SIGNED_OUT'&&currentUser){currentUser=null;companyId=null;showAuth('You have been signed out.')}})}
 
 const isoToday=()=>{let d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -147,7 +149,25 @@ let calendarMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),cal
 function getScreenZoom(){try{const n=Number(localStorage.getItem("lc_screen_zoom")||"1");return [1,1.1,1.25,1.5].includes(n)?n:1}catch(_){return 1}}
 function setScreenZoom(value){const n=Number(value);if(![1,1.1,1.25,1.5].includes(n))return;try{localStorage.setItem("lc_screen_zoom",String(n))}catch(_){}document.documentElement.style.setProperty("--lc-screen-zoom",String(n));render()}
 try{document.documentElement.style.setProperty("--lc-screen-zoom",String(getScreenZoom()))}catch(_){}
-function setTab(t){tab=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('#welcome').textContent=({home:'Your business at a glance.',schedule:'Manage your jobs.',customers:'Your customer book.',team:'Your team.',revenue:'Track every dollar.',settings:'Personalize your workspace.',business:'Run your business from one place.',contracts:'Manage cleaning contracts.',estimates:'Build customer quotes and estimates.'})[t];render()}
+function setTab(t){
+ if(accountRole!=='Owner'&&!['home','schedule','my-pay'].includes(t))t='home';
+ tab=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+ $('#welcome').textContent=({home:accountRole==='Owner'?'Your business at a glance.':'Your work at a glance.',schedule:accountRole==='Owner'?'Manage your jobs.':'My assigned jobs.',customers:'Your customer book.',team:'Your team.',revenue:'Track every dollar.',settings:'Personalize your workspace.',business:'Run your business from one place.',payroll:'Private payroll & pay periods.',contracts:'Manage cleaning contracts.',estimates:'Build customer quotes and estimates.','my-pay':'My hours & pay.'})[t];
+ render()
+}
+function applyRoleNavigation(){
+ const owner=accountRole==='Owner',menu=document.getElementById('menuToggle'),drawer=document.getElementById('dashboardDrawer'),backdrop=document.getElementById('drawerBackdrop'),nav=document.getElementById('nav');
+ if(menu)menu.style.display=owner?'grid':'none';
+ if(drawer)drawer.style.display=owner?'flex':'none';
+ if(backdrop)backdrop.style.display=owner?'block':'none';
+ if(!owner){
+  document.body.classList.remove('drawer-open');
+  nav.innerHTML='<button data-tab="home" onclick="search=\'\';setTab(\'home\')"><span class="ico">⌂</span>Home</button><button data-tab="schedule" onclick="search=\'\';setTab(\'schedule\')"><span class="ico">▦</span>My Jobs</button><button data-tab="my-pay" onclick="setTab(\'my-pay\')"><span class="ico">＄</span>My Pay</button>';
+ }else{
+  nav.innerHTML='<button data-tab="home" class="active"><span class="ico">⌂</span>Home</button><button data-tab="schedule"><span class="ico">▦</span>Schedule</button>';
+  nav.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{search='';setTab(b.dataset.tab);document.querySelectorAll('[data-drawer-tab]').forEach(x=>x.classList.toggle('active',x.dataset.drawerTab===b.dataset.tab))}));
+ }
+}
 function maps(address){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(address)}
 function jobCard(j){return `<article class="card"><label class="bulk-check"><input type="checkbox" ${selectedJobIds.includes(j.id)?'checked':''} onchange="toggleJobSelection('${j.id}',this.checked)"> Select job</label><div class="job"><div class="time">${escapeHtml(j.time||'No time')}<br><small>${escapeHtml(j.date||'')}</small></div><div class="jobbody"><h3>${escapeHtml(j.name)}</h3><p>⌖ ${escapeHtml(j.address)}</p><p>Assigned: ${escapeHtml(j.assignee||'Owner')} · <b>${fmtMoney(j.price)}</b></p><span class="pill ${j.status==='Completed'?'':'scheduled'}">${escapeHtml(j.status)}</span></div></div><div class="actions"><a class="button secondary small" href="${maps(j.address)}" target="_blank" rel="noopener">⌖ Directions</a>${j.status!=='Completed'?(j.activeWork?`<button type="button" class="small secondary" onclick="stopJobWork('${j.id}')">Finish timer</button>`:`<button type="button" class="small secondary" onclick="startJobWork('${j.id}')">Start work timer</button>`):''}${j.status!=='Completed'?`<button class="small" onclick="completeJob('${j.id}')">Mark complete</button>`:''}<button class="small secondary" onclick="editJob('${j.id}')">Edit</button><button class="small danger" onclick="deleteJob('${j.id}')">Delete</button></div></article>`}
 function calendarMoveMonth(delta){calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+delta,1);render()}
@@ -165,6 +185,15 @@ function renderCalendar(app){
 }
 function render(){
  const app=$('#app'),today=isoToday(),weekStart=new Date();weekStart.setDate(weekStart.getDate()-6);const weekISO=weekStart.toISOString().slice(0,10);
+ if(accountRole!=='Owner'){
+  if(!['home','schedule','my-pay'].includes(tab))tab='home';
+  const mine=db.jobs.filter(j=>String(j.assignee||'Owner').trim().toLowerCase()===String(currentEmployeeName||'').trim().toLowerCase()).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  if(tab==='my-pay'){renderEmployeePay(app);return}
+  if(tab==='schedule'){app.innerHTML='<div class="topline"><div><h2>My assigned jobs</h2><p class="muted">Only jobs assigned to your account appear here.</p></div></div>'+(mine.length?mine.map(employeeJobCard).join(''):'<div class="card empty">You do not have any assigned jobs yet.</div>');return}
+  const upcoming=mine.filter(j=>j.status!=='Completed'&&j.date>=today).slice(0,5),completed=mine.filter(j=>j.status==='Completed').length;
+  app.innerHTML='<div class="settings-hero"><div class="eyebrow">Employee workspace</div><h2>Welcome, '+escapeHtml(currentEmployeeName||'Team member')+'</h2><p>See your assigned jobs, directions, checklists, timers, and your own pay information.</p></div><div class="grid"><div class="card metric"><small>My upcoming jobs</small><strong>'+mine.filter(j=>j.status!=='Completed'&&j.date>=today).length+'</strong></div><div class="card metric"><small>My completed jobs</small><strong>'+completed+'</strong></div></div><div class="topline"><h2>Next jobs</h2><button onclick="setTab(\'schedule\')">View my jobs</button></div>'+(upcoming.length?upcoming.map(employeeJobCard).join(''):'<div class="card empty">No upcoming jobs assigned to you.</div>');
+  return;
+ }
  const todays=db.jobs.filter(j=>j.date===today),doneToday=todays.filter(j=>j.status==='Completed').reduce((s,j)=>s+(+j.price||0),0),doneWeek=db.jobs.filter(j=>j.date>=weekISO&&j.date<=today&&j.status==='Completed').reduce((s,j)=>s+(+j.price||0),0);
  if(tab==='home'){
  const next=db.jobs.filter(j=>j.status!=='Completed'&&j.date>=today).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,4);
@@ -184,6 +213,7 @@ function render(){
  let done=db.jobs.filter(j=>j.status==='Completed'&&j.date>=startISO&&j.date<=today),total=done.reduce((s,j)=>s+(+j.price||0),0);
  app.innerHTML=`<h2>Revenue dashboard</h2><div class="toolbar"><select onchange="revPeriod=this.value;render()"><option value="day" ${revPeriod==='day'?'selected':''}>Today</option><option value="week" ${revPeriod==='week'?'selected':''}>Last 7 days</option><option value="month" ${revPeriod==='month'?'selected':''}>This month</option><option value="all" ${revPeriod==='all'?'selected':''}>All time</option></select></div><div class="revenuebig" style="margin:12px 0"><small>Revenue from completed jobs</small><strong>${fmtMoney(total)}</strong><small>${done.length} completed job${done.length===1?'':'s'}</small></div><div class="card"><h3>Completed jobs</h3>${done.length?done.map(j=>`<div class="row"><div><b>${escapeHtml(j.name)}</b><div class="muted">${escapeHtml(j.date)} · ${escapeHtml(j.address)}</div></div><b>${fmtMoney(j.price)}</b></div>`).join(''):'<p class="muted">No completed jobs in this period yet.</p>'}</div><div class="notice">Revenue is based on job prices marked completed. This is gross revenue, not profit after expenses or taxes.</div>`;
  }else if(tab==='business'){renderBusinessCenter(app);
+ }else if(tab==='payroll'){renderPayrollCenter(app);
  }else if(tab==='settings'){
  const permission=('Notification' in window)?Notification.permission:'Not supported';
  const pushEnabled=localStorage.getItem('lc_push_enabled')==='on';
@@ -449,6 +479,64 @@ function deleteSelectedJobs(){const ids=selectedJobIds.filter(id=>db.jobs.some(j
 async function compressPropertyPhoto(file){if(!file||!file.type.startsWith('image/'))throw new Error('Please choose an image file.');if(file.size>12*1024*1024)throw new Error('Each photo must be 12 MB or smaller.');const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('Could not open that photo.'));img.src=reader.result};reader.onerror=()=>reject(new Error('Could not read that photo.'));reader.readAsDataURL(file)});const scale=Math.min(1,1200/Math.max(data.width,data.height));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(data.width*scale));canvas.height=Math.max(1,Math.round(data.height*scale));const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(data,0,0,canvas.width,canvas.height);return canvas.toDataURL('image/jpeg',.72)}
 function customerForm(existing={}){const p=existing.propertyProfile||{};$('#app').innerHTML=`<div class="topline"><h2>${existing.id?'Edit customer':'New customer'}</h2><button class="secondary" onclick="setTab('customers')">Cancel</button></div><form class="card" id="customerForm"><h3>Contact details</h3><label>Full name</label><input name="name" required value="${escapeHtml(existing.name||'')}"><label>Email address</label><input name="email" type="email" autocomplete="email" value="${escapeHtml(existing.email||'')}" placeholder="customer@example.com"><label>Phone number</label><input name="phone" type="tel" autocomplete="tel" value="${escapeHtml(existing.phone||'')}"><label>Service address</label><input name="address" required value="${escapeHtml(existing.address||'')}"><div class="divider" style="border-top:1px solid var(--line);margin:18px 0"></div><h3>Property profile</h3><p class="muted">Save the home's details once. They can fill in future quotes automatically.</p><div class="formgrid"><div><label>1-story windows</label><input name="oneStoryWindowCount" type="number" min="0" step="1" value="${Number(p.oneStoryWindowCount)||0}"></div><div><label>2-story windows</label><input name="twoStoryWindowCount" type="number" min="0" step="1" value="${Number(p.twoStoryWindowCount)||0}"></div><div><label>Screens</label><input name="screenCount" type="number" min="0" step="1" value="${Number(p.screenCount)||0}"></div><div><label>Tracks</label><input name="trackCount" type="number" min="0" step="1" value="${Number(p.trackCount)||0}"></div></div><label>Last cleaning date</label><input name="lastCleaningDate" type="date" value="${escapeHtml(p.lastCleaningDate||'')}"><label>Special cleaning instructions</label><textarea name="cleaningInstructions" rows="3" placeholder="Gate code, access notes, special requests…">${escapeHtml(p.cleaningInstructions||'')}</textarea><label>Upload property photos</label><input name="propertyPhotos" type="file" accept="image/*" multiple><small class="muted">Choose pictures from your phone or computer. Up to 4 photos per property; photos are automatically resized to save space.</small><button class="full" style="margin-top:16px">Save customer and property profile</button></form>`;$('#customerForm').onsubmit=async e=>{e.preventDefault();const submit=e.target.querySelector('button.full');if(submit){submit.disabled=true;submit.textContent='Saving photos…'}try{let d=Object.fromEntries(new FormData(e.target));const files=Array.from(e.target.elements.propertyPhotos.files||[]);const photoData=[...(p.photoData||[])];if(photoData.length+files.length>4)throw new Error('You can save up to 4 photos per property.');for(const file of files)photoData.push(await compressPropertyPhoto(file));const propertyProfile={...(existing.propertyProfile||{}),oneStoryWindowCount:Math.max(0,Math.floor(Number(d.oneStoryWindowCount)||0)),twoStoryWindowCount:Math.max(0,Math.floor(Number(d.twoStoryWindowCount)||0)),screenCount:Math.max(0,Math.floor(Number(d.screenCount)||0)),trackCount:Math.max(0,Math.floor(Number(d.trackCount)||0)),lastCleaningDate:d.lastCleaningDate||'',cleaningInstructions:d.cleaningInstructions.trim(),photoData};delete d.oneStoryWindowCount;delete d.twoStoryWindowCount;delete d.screenCount;delete d.trackCount;delete d.lastCleaningDate;delete d.cleaningInstructions;delete d.propertyPhotos;if(existing.id){const i=db.customers.findIndex(c=>c.id===existing.id);if(i>=0)db.customers[i]={...db.customers[i],...d,propertyProfile}}else db.customers.push({id:crypto.randomUUID(),...d,propertyProfile});save();setTab('customers')}catch(err){alert(err.message||'Could not save photos.');if(submit){submit.disabled=false;submit.textContent='Save customer and property profile'}}}}
 
+function employeeJobCard(j){
+ const checklist=Array.isArray(j.checklist)&&j.checklist.length?j.checklist:defaultJobChecklist();
+ const tasks=checklist.map(x=>'<label style="display:flex;align-items:center;gap:9px;margin:8px 0"><input type="checkbox" style="width:19px;height:19px" '+(x.done?'checked':'')+' onchange="updateEmployeeChecklist(\''+j.id+'\',\''+x.id+'\',this.checked)">'+escapeHtml(x.label)+'</label>').join('');
+ const timer=j.activeWork&&j.activeWork.employee===currentEmployeeName,allDone=checklist.every(x=>x.done);
+ return '<article class="card"><div class="job"><div class="time">'+escapeHtml(j.time||'No time')+'<br><small>'+escapeHtml(j.date||'')+'</small></div><div class="jobbody"><h3>'+escapeHtml(j.name||'Window cleaning job')+'</h3><p>⌖ '+escapeHtml(j.address||'')+'</p><span class="pill '+(j.status==='Completed'?'':'scheduled')+'">'+escapeHtml(j.status||'Scheduled')+'</span></div></div><div class="actions"><a class="button secondary small" href="'+maps(j.address||'')+'" target="_blank" rel="noopener">Directions</a>'+(j.status!=='Completed'?(timer?'<button type="button" class="small secondary" onclick="stopJobWork(\''+j.id+'\')">Finish timer</button>':'<button type="button" class="small secondary" onclick="startJobWork(\''+j.id+'\')">Start work timer</button>'):'')+'</div><div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px"><b>Job checklist</b>'+tasks+'</div>'+(j.status!=='Completed'&&allDone&&!j.activeWork?'<button class="full" style="margin-top:12px" onclick="completeJob(\''+j.id+'\')">Mark job complete</button>':'')+'</article>';
+}
+function updateEmployeeChecklist(jobId,taskId,checked){
+ const job=db.jobs.find(j=>j.id===jobId);if(!job)return;
+ if(!Array.isArray(job.checklist)||!job.checklist.length)job.checklist=defaultJobChecklist();
+ const task=job.checklist.find(x=>x.id===taskId);if(task)task.done=!!checked;
+ save();render();
+}
+async function loadMyPayroll(){
+ myPayrollRows=[];
+ if(!supabaseClient||!companyId||!currentUser)return;
+ const {data,error}=await supabaseClient.from('crm_employee_payroll').select('id,employee_name,pay_period_start,pay_period_end,hours,hourly_rate,gross_pay,status,created_at').eq('company_id',companyId).eq('employee_user_id',currentUser.id).order('pay_period_start',{ascending:false});
+ if(error){console.error('Could not load employee payroll',error);return}
+ myPayrollRows=data||[];
+}
+function renderEmployeePay(app){
+ app.innerHTML='<h2>My hours &amp; pay</h2><p class="muted">Only your own pay records are available in this view.</p>'+(myPayrollRows.length?myPayrollRows.map(p=>'<div class="card"><div class="row"><b>'+escapeHtml(p.pay_period_start)+' – '+escapeHtml(p.pay_period_end)+'</b><span class="pill">'+escapeHtml(p.status)+'</span></div><div class="grid"><div><small class="muted">Hours</small><h3>'+Number(p.hours||0).toFixed(2)+'</h3></div><div><small class="muted">Hourly rate</small><h3>'+fmtMoney(p.hourly_rate)+'</h3></div><div><small class="muted">Gross pay</small><h3>'+fmtMoney(p.gross_pay)+'</h3></div></div></div>').join(''):'<div class="card empty">No pay periods have been published for your account yet. Ask the owner when the next pay period is ready.</div>');
+}
+async function renderPayrollCenter(app){
+ app.innerHTML='<h2>Payroll</h2><div class="card empty">Loading private payroll records…</div>';
+ const [pRes,rRes,wRes]=await Promise.all([
+  supabaseClient.from('profiles').select('user_id,full_name,email').eq('company_id',companyId),
+  supabaseClient.from('crm_employee_pay_rates').select('employee_user_id,hourly_rate').eq('company_id',companyId),
+  supabaseClient.from('crm_employee_payroll').select('*').eq('company_id',companyId).order('pay_period_start',{ascending:false}).limit(100)
+ ]);
+ if(tab!=='payroll'||accountRole!=='Owner')return;
+ if(pRes.error||rRes.error||wRes.error){app.innerHTML='<div class="card notice">Could not load payroll. '+escapeHtml(pRes.error?.message||rRes.error?.message||wRes.error?.message||'Please try again.')+'</div>';return}
+ payrollProfiles=(pRes.data||[]).map(p=>{const team=db.team.find(m=>String(m.email||'').trim().toLowerCase()===String(p.email||'').trim().toLowerCase());return {...p,employee_name:team?.name||p.full_name||p.email||'Employee'}});
+ payrollRates=Object.fromEntries((rRes.data||[]).map(x=>[x.employee_user_id,Number(x.hourly_rate)||0]));payrollRows=wRes.data||[];
+ const today=isoToday(),startDefault=new Date();startDefault.setDate(startDefault.getDate()-6);
+ app.innerHTML='<div class="topline"><div><h2>Payroll</h2><p class="muted">Private owner-only payroll controls. Employees can only read their own published pay records.</p></div></div><div class="card"><h3>Employee hourly rates</h3><p class="muted">Set each employee rate. Rates are stored separately from the shared company workspace.</p>'+(payrollProfiles.length?payrollProfiles.map(p=>'<div class="row"><div style="min-width:0;flex:1"><b>'+escapeHtml(p.employee_name)+'</b><div class="muted">'+escapeHtml(p.email||'')+'</div></div><div style="width:135px"><label style="margin-top:0">Hourly rate ($)</label><input id="rate-'+p.user_id+'" type="number" min="0" step=".01" value="'+(payrollRates[p.user_id]||0)+'"></div><button class="small" onclick="saveEmployeePayRate(\''+p.user_id+'\')">Save</button></div>').join(''):'<p class="muted">No employee profiles found yet.</p>')+'</div><div class="card"><h3>Calculate a pay period</h3><p class="muted">Hours come from saved job timers within the selected dates. This is a gross-pay estimate, before taxes or deductions.</p><form id="payrollPeriodForm"><div class="formgrid"><div><label>Period start</label><input name="start" type="date" required value="'+startDefault.toISOString().slice(0,10)+'"></div><div><label>Period end</label><input name="end" type="date" required value="'+today+'"></div></div><button class="full" style="margin-top:12px">Calculate &amp; save payroll</button></form></div><div class="card"><h3>Saved pay periods</h3>'+(payrollRows.length?payrollRows.map(p=>'<div class="row"><div style="min-width:0;flex:1"><b>'+escapeHtml(p.employee_name)+'</b><div class="muted">'+escapeHtml(p.pay_period_start)+' – '+escapeHtml(p.pay_period_end)+' · '+Number(p.hours||0).toFixed(2)+' hours · '+fmtMoney(p.gross_pay)+'</div></div><select style="width:112px" onchange="updatePayrollStatus(\''+p.id+'\',this.value)"><option '+(p.status==='Draft'?'selected':'')+'>Draft</option><option '+(p.status==='Reviewed'?'selected':'')+'>Reviewed</option><option '+(p.status==='Paid'?'selected':'')+'>Paid</option></select></div>').join(''):'<p class="muted">No pay periods saved yet.</p>')+'</div>';
+ const form=document.getElementById('payrollPeriodForm');
+ form.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(form)),start=d.start,end=d.end;if(end<start){alert('The end date must be on or after the start date.');return}
+  const records=payrollProfiles.map(p=>{const minutes=db.jobs.reduce((sum,j)=>sum+(j.timeEntries||[]).filter(x=>x.employee===p.employee_name&&x.startedAt&&x.startedAt.slice(0,10)>=start&&x.startedAt.slice(0,10)<=end).reduce((n,x)=>n+(Number(x.minutes)||0),0),0);const hours=Math.round(minutes/60*100)/100,rate=payrollRates[p.user_id]||0,old=payrollRows.find(x=>x.employee_user_id===p.user_id&&x.pay_period_start===start&&x.pay_period_end===end);return {company_id:companyId,employee_user_id:p.user_id,employee_name:p.employee_name,pay_period_start:start,pay_period_end:end,hours,hourly_rate:rate,gross_pay:Math.round(hours*rate*100)/100,status:old?.status||'Draft'}}).filter(x=>x.hours>0||x.gross_pay>0);
+  if(!records.length){alert('No tracked hours were found for this period. Make sure employees finish their work timers.');return}
+  const {error}=await supabaseClient.from('crm_employee_payroll').upsert(records,{onConflict:'company_id,employee_user_id,pay_period_start,pay_period_end'});
+  if(error){alert('Could not save payroll: '+error.message);return}
+  await renderPayrollCenter(app);
+ };
+}
+async function saveEmployeePayRate(userId){
+ if(accountRole!=='Owner'||!supabaseClient)return;
+ const input=document.getElementById('rate-'+userId),rate=Number(input?.value);
+ if(!input||!Number.isFinite(rate)||rate<0){alert('Enter a valid hourly rate.');return}
+ const {error}=await supabaseClient.from('crm_employee_pay_rates').upsert({company_id:companyId,employee_user_id:userId,hourly_rate:Math.round(rate*100)/100,updated_at:new Date().toISOString()},{onConflict:'company_id,employee_user_id'});
+ if(error){alert('Could not save hourly rate: '+error.message);return}
+ alert('Hourly rate saved.');await renderPayrollCenter(document.getElementById('app'));
+}
+async function updatePayrollStatus(id,status){
+ if(accountRole!=='Owner'||!['Draft','Reviewed','Paid'].includes(status))return;
+ const {error}=await supabaseClient.from('crm_employee_payroll').update({status,updated_at:new Date().toISOString()}).eq('id',id);
+ if(error){alert('Could not update payroll status: '+error.message);return}
+ await renderPayrollCenter(document.getElementById('app'));
+}
 function renderBusinessCenter(app){
  const done=db.jobs.filter(j=>j.status==='Completed'),gross=done.reduce((n,j)=>n+(+j.price||0),0),cost=db.expenses.reduce((n,e)=>n+(+e.amount||0),0),due=db.customers.filter(c=>!c.propertyProfile?.lastCleaningDate||(Date.now()-new Date(c.propertyProfile.lastCleaningDate+'T12:00:00').getTime())/86400000>=60);
  const staff=db.team.map(m=>{const a=done.filter(j=>j.assignee===m.name);const minutes=db.jobs.reduce((n,j)=>n+(j.timeEntries||[]).filter(x=>x.employee===m.name).reduce((z,x)=>z+(Number(x.minutes)||0),0),0);return {name:m.name,count:a.length,total:a.reduce((n,j)=>n+(+j.price||0),0),hours:minutes/60}});

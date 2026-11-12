@@ -41,6 +41,12 @@ body.drawer-open .drawer-backdrop{opacity:1;visibility:visible}body.drawer-open 
 html,body,button,a,input,select,textarea{touch-action:manipulation}
 #app{zoom:var(--lc-screen-zoom,1)}
 
+
+/* Employee accounts must never expose owner navigation, even if another script changes inline styles. */
+body.employee-mode #menuToggle,
+body.employee-mode #dashboardDrawer,
+body.employee-mode #drawerBackdrop{display:none!important;visibility:hidden!important;pointer-events:none!important}
+body.employee-mode #nav button:not([data-tab="home"]):not([data-tab="schedule"]):not([data-tab="estimates"]):not([data-tab="my-pay"]){display:none!important}
 </style>
 </head>
 <body>
@@ -156,15 +162,21 @@ function setTab(t){
  render()
 }
 function applyRoleNavigation(){
- const owner=accountRole==='Owner',menu=document.getElementById('menuToggle'),drawer=document.getElementById('dashboardDrawer'),backdrop=document.getElementById('drawerBackdrop'),nav=document.getElementById('nav');
+ const role=String(accountRole||'Employee').trim().toLowerCase(),owner=role==='owner';
+ const menu=document.getElementById('menuToggle'),drawer=document.getElementById('dashboardDrawer'),backdrop=document.getElementById('drawerBackdrop'),nav=document.getElementById('nav');
+ document.body.classList.toggle('employee-mode',!owner);
  if(menu)menu.style.display=owner?'grid':'none';
  if(drawer)drawer.style.display=owner?'flex':'none';
  if(backdrop)backdrop.style.display=owner?'block':'none';
  if(!owner){
   document.body.classList.remove('drawer-open');
-  nav.innerHTML='<button data-tab="home" onclick="setTab(this.dataset.tab)">⌂ Home</button><button data-tab="schedule" onclick="setTab(this.dataset.tab)">▦ Schedule</button><button data-tab="estimates" onclick="setTab(this.dataset.tab)">▤ Quotes &amp; Estimates</button><button data-tab="my-pay" onclick="setTab(this.dataset.tab)">＄ My Hours &amp; Pay</button>';
+  if(drawer)drawer.setAttribute('aria-hidden','true');
+  if(menu)menu.setAttribute('aria-expanded','false');
+  if(nav){
+   nav.innerHTML='<button data-tab="home" onclick="setTab(this.dataset.tab)">⌂ Home</button><button data-tab="schedule" onclick="setTab(this.dataset.tab)">▦ Schedule</button><button data-tab="estimates" onclick="setTab(this.dataset.tab)">▤ Quotes &amp; Estimates</button><button data-tab="my-pay" onclick="setTab(this.dataset.tab)">＄ My Hours &amp; Pay</button>';
+  }
   setTab('home');
- }else{
+ }else if(nav){
   nav.innerHTML='<button data-tab="home" class="active"><span class="ico">⌂</span>Home</button><button data-tab="schedule"><span class="ico">▦</span>Schedule</button>';
   nav.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{search='';setTab(b.dataset.tab);document.querySelectorAll('[data-drawer-tab]').forEach(x=>x.classList.toggle('active',x.dataset.drawerTab===b.dataset.tab))}));
  }

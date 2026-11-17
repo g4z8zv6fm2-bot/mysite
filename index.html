@@ -637,7 +637,7 @@ function ownerAdvancedToolsHtml(){
   const cancelled=assigned.filter(j=>String(j.status||'').toLowerCase()==='cancelled');
   const minutes=assigned.reduce((n,j)=>n+(j.timeEntries||[]).filter(t=>t.employee===m.name).reduce((z,t)=>z+(Number(t.minutes)||0),0),0);
   const timed=assigned.filter(j=>(j.timeEntries||[]).some(t=>t.employee===m.name&&Number(t.minutes)>0)).length;
-  return {name:m.name,assigned:assigned.length,completed,cancelled,hours:minutes/60,timed,rate:assigned.length?Math.round(completed/assigned.length*100):0};
+  return {name:m.name,assigned:assigned.length,completed,cancelled,hours:minutes/60,timed,rate:(assigned.length-cancelled)>0?Math.round(completed/(assigned.length-cancelled)*100):0};
  });
  const future=db.jobs.filter(j=>j.status!=='Completed'&&String(j.status||'').toLowerCase()!=='cancelled'&&j.date>=isoToday()).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
  const pending=(db.estimates||[]).filter(e=>!['Approved','Declined','Converted'].includes(e.status));

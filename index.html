@@ -260,7 +260,7 @@ function render(){
  renderCalendar(app);
  }else if(tab==='customers'){
  let list=db.customers.filter(c=>(c.name+' '+c.address+' '+c.phone+' '+(Array.isArray(c.tags)?c.tags.join(' '):'')).toLowerCase().includes(search.toLowerCase())&&(!window.customerTagFilter||(Array.isArray(c.tags)&&c.tags.includes(window.customerTagFilter))));
- app.innerHTML=`<div class="topline"><h2>Customers</h2><button onclick="customerForm()">+ Add customer</button></div><div class="formgrid"><input placeholder="Search customers..." value="${escapeHtml(search)}" oninput="search=this.value;render()"><select aria-label="Filter customers by tag" onchange="window.customerTagFilter=this.value;render()"><option value="">All customer groups</option>${['Residential','Commercial','Recurring','VIP','Past Due'].map(t=>`<option value="${t}" ${window.customerTagFilter===t?'selected':''}>${t}</option>`).join('')}</select></div>${list.length?list.map(c=>{const p=c.propertyProfile||{};const photos=(p.photoUrls||[]).filter(u=>/^https:\/\//i.test(u));return `<div class="card"><h3>${escapeHtml(c.name)}</h3>${Array.isArray(c.tags)&&c.tags.length?'<div class="actions" style="margin:6px 0 10px">'+c.tags.map(t=>'<span class="pill customer-tag">'+escapeHtml(t)+'</span>').join('')+'</div>':''}<p class="muted">${escapeHtml(c.phone||'No phone')} · ${escapeHtml(c.email||'No email')}<br>⌖ ${escapeHtml(c.address||'No address')}</p><div class="notice" style="margin:10px 0"><b>Property profile</b><br>${Number(p.oneStoryWindowCount)||0} one-story · ${Number(p.twoStoryWindowCount)||0} two-story · ${Number(p.screenCount)||0} screens · ${Number(p.trackCount)||0} tracks<br><span class="muted">Last cleaned: ${escapeHtml(p.lastCleaningDate||'Not recorded')} · Previous prices: ${customerHistory(c)}</span>${p.cleaningInstructions?'<p class="muted">Instructions: '+escapeHtml(p.cleaningInstructions)+'</p>':''}${(p.photoData||[]).length?'<div class="formgrid" style="margin:10px 0">'+p.photoData.map((src,i)=>'<a href="'+escapeHtml(src)+'" target="_blank" rel="noopener"><img src="'+escapeHtml(src)+'" alt="Property photo '+(i+1)+'" style="width:100%;height:130px;object-fit:cover;border-radius:10px"></a>').join('')+'</div>':''}${photos.length?'<p class="muted">Older photo links: '+photos.map((u,i)=>'<a href="'+escapeHtml(u)+'" target="_blank" rel="noopener">Photo '+(i+1)+'</a>').join(' · ')+'</p>':''}</div><div class="actions"><a class="button secondary small" target="_blank" rel="noopener" href="${maps(c.address)}">Directions</a><button class="small secondary" onclick="viewCustomerHistory('${c.id}')">History</button><button class="small secondary" onclick="editCustomer('${c.id}')">Edit profile</button><button class="small" onclick="newJobFor('${c.id}')">Schedule job</button><button class="small danger" onclick="deleteCustomer('${c.id}')">Delete</button></div></div>`}).join(''):'<div class="card empty">No customers saved yet. Add a customer to get started.</div>'}`;
+ app.innerHTML=`<div class="topline"><h2>Customers</h2><button onclick="customerForm()">+ Add customer</button></div><div class="formgrid"><input placeholder="Search customers..." value="${escapeHtml(search)}" oninput="search=this.value;render()"><select aria-label="Filter customers by tag" onchange="window.customerTagFilter=this.value;render()"><option value="">All customer groups</option>${['Residential','Commercial','Recurring','VIP','Past Due'].map(t=>`<option value="${t}" ${window.customerTagFilter===t?'selected':''}>${t}</option>`).join('')}</select></div>${list.length?list.map(c=>{const p=c.propertyProfile||{};const photos=(p.photoUrls||[]).filter(u=>/^https:\/\//i.test(u));return `<div class="card"><h3>${escapeHtml(c.name)}</h3>${Array.isArray(c.tags)&&c.tags.length?'<div class="actions" style="margin:6px 0 10px">'+c.tags.map(t=>'<span class="pill customer-tag">'+escapeHtml(t)+'</span>').join('')+'</div>':''}<p class="muted">${escapeHtml(c.phone||'No phone')} · ${escapeHtml(c.email||'No email')}<br>⌖ ${escapeHtml(c.address||'No address')}</p><div class="notice" style="margin:10px 0"><b>Property profile</b><br>${Number(p.oneStoryWindowCount)||0} one-story · ${Number(p.twoStoryWindowCount)||0} two-story · ${Number(p.screenCount)||0} screens · ${Number(p.trackCount)||0} tracks<br><span class="muted">Last cleaned: ${escapeHtml(p.lastCleaningDate||'Not recorded')} · Previous prices: ${customerHistory(c)}</span>${p.cleaningInstructions?'<p class="muted">Instructions: '+escapeHtml(p.cleaningInstructions)+'</p>':''}${(p.photoData||[]).length?'<div class="formgrid" style="margin:10px 0">'+p.photoData.map((src,i)=>'<a href="'+escapeHtml(src)+'" target="_blank" rel="noopener"><img src="'+escapeHtml(src)+'" alt="Property photo '+(i+1)+'" style="width:100%;height:130px;object-fit:cover;border-radius:10px"></a>').join('')+'</div>':''}${photos.length?'<p class="muted">Older photo links: '+photos.map((u,i)=>'<a href="'+escapeHtml(u)+'" target="_blank" rel="noopener">Photo '+(i+1)+'</a>').join(' · ')+'</p>':''}</div><div class="actions"><a class="button secondary small" target="_blank" rel="noopener" href="${maps(c.address)}">Directions</a><button class="small secondary" onclick="viewCustomerHistory('${c.id}')">History</button><button class="small secondary" onclick="editCustomer('${c.id}')">Edit profile</button><button class="small" onclick="newJobFor('${c.id}')">Schedule job</button><button class="small secondary" onclick="createCustomerPortalLink('${c.id}')">${c.portalLinkId&&c.portalLinkExpiresAt&&new Date(c.portalLinkExpiresAt)>new Date()?'Renew portal link':'Create portal link'}</button>${c.portalLinkId?'<button class="small danger" onclick="revokeCustomerPortalLink(\''+c.id+'\')">Revoke portal</button>':''}<button class="small danger" onclick="deleteCustomer('${c.id}')">Delete</button></div></div>`}).join(''):'<div class="card empty">No customers saved yet. Add a customer to get started.</div>'}`;
  }else if(tab==='contracts'){ renderContractsView(app);
  }else if(tab==='estimates'){ renderEstimatesView(app);
  }else if(tab==='team'){
@@ -627,6 +627,88 @@ function growthWeather(){const zip=document.getElementById('growthWeatherZip')?.
 function growthAssign(id){const x=(db.equipment||[]).find(v=>v.id===id);if(!x)return;const a=prompt('Assigned employee (blank for unassigned):',x.assignedTo||'');if(a===null)return;x.assignedTo=a.trim();save();render()}
 function bindGrowthTools(){const p=document.getElementById('growthProfit');if(p)p.onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(p)),j=db.jobs.find(x=>x.id===d.jobId);if(!j)return;j.costEstimate={labor:Number(d.labor)||0,other:Number(d.other)||0};save();render()};const q=document.getElementById('growthEquipment');if(q)q.onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(q));if(!Array.isArray(db.equipment))db.equipment=[];db.equipment.push({id:crypto.randomUUID(),name:d.name,assignedTo:d.assignedTo,notes:d.notes});save();render()};const g=document.getElementById('growthGoals');if(g)g.onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(g));db.businessGoals={revenue:Number(d.revenue)||0,jobs:Number(d.jobs)||0};save();render()}}
 
+
+function ownerAdvancedToolsHtml(){
+ const staff=db.team.filter(m=>String(m.role||'').toLowerCase()!=='owner');
+ const reliability=staff.map(m=>{
+  const assigned=db.jobs.filter(j=>String(j.assignee||'').trim().toLowerCase()===String(m.name||'').trim().toLowerCase());
+  const completed=assigned.filter(j=>j.status==='Completed').length;
+  const cancelled=assigned.filter(j=>String(j.status||'').toLowerCase()==='cancelled');
+  const minutes=assigned.reduce((n,j)=>n+(j.timeEntries||[]).filter(t=>t.employee===m.name).reduce((z,t)=>z+(Number(t.minutes)||0),0),0);
+  const timed=assigned.filter(j=>(j.timeEntries||[]).some(t=>t.employee===m.name&&Number(t.minutes)>0)).length;
+  return {name:m.name,assigned:assigned.length,completed,cancelled,hours:minutes/60,timed,rate:assigned.length?Math.round(completed/assigned.length*100):0};
+ });
+ const future=db.jobs.filter(j=>j.status!=='Completed'&&String(j.status||'').toLowerCase()!=='cancelled'&&j.date>=isoToday()).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ const pending=(db.estimates||[]).filter(e=>!['Approved','Declined','Converted'].includes(e.status));
+ const today=new Date(isoToday()+'T00:00:00');
+ const horizons=[30,60,90].map(days=>{const end=new Date(today);end.setDate(end.getDate()+days);const rows=future.filter(j=>{const d=new Date((j.date||'')+'T12:00:00');return d>=today&&d<end});return {days,rows,total:rows.reduce((n,j)=>n+(Number(j.price)||0),0)}});
+ const recurring=future.filter(j=>j.contractGenerated||j.contractVisitId).slice(0,8);
+ return '<div class="card"><h3>Automatic recurring jobs</h3><p class="muted">Signed contracts create cleaning visits automatically. Those visits are synced into your calendar when you sign in. This button checks for any visits that have not appeared yet.</p><div class="row"><b>Future contract jobs</b><strong>'+future.filter(j=>j.contractGenerated||j.contractVisitId).length+'</strong></div>'+(recurring.length?recurring.map(j=>'<div class="row"><span>'+escapeHtml(j.name)+'<small class="muted" style="display:block">'+escapeHtml(j.date)+' · '+escapeHtml(j.time||'Time not set')+'</small></span><b>'+fmtMoney(j.price)+'</b></div>').join(''):'<p class="muted">No future contract visits are currently in the schedule.</p>')+'<button class="secondary full" onclick="refreshRecurringJobs()">Sync contract visits now</button></div>'+
+ '<div class="card"><h3>Employee reliability report</h3><p class="muted">A simple work-history report based on assigned jobs and saved timers. It does not guess attendance or judge employees.</p>'+(reliability.length?reliability.map(m=>'<div style="padding:12px 0;border-bottom:1px solid var(--line)"><b>'+escapeHtml(m.name)+'</b><div class="grid"><div><small class="muted">Completed</small><strong>'+m.completed+'/'+m.assigned+'</strong></div><div><small class="muted">Completion rate</small><strong>'+m.rate+'%</strong></div><div><small class="muted">Tracked hours</small><strong>'+m.hours.toFixed(1)+'</strong></div><div><small class="muted">Jobs with timer</small><strong>'+m.timed+'</strong></div></div><small class="muted">'+m.cancelled+' cancelled jobs · timer hours are recorded from job time entries</small></div>').join(''):'<p class="muted">Add employees and assign jobs to build this report.</p>')+'</div>'+
+ '<div class="card"><h3>Business forecast</h3><p class="muted">Booked revenue uses future scheduled jobs only. Quotes are shown separately as possible work, not guaranteed income.</p>'+horizons.map(h=>'<div class="row"><span>Next '+h.days+' days<small class="muted" style="display:block">'+h.rows.length+' scheduled jobs</small></span><b>'+fmtMoney(h.total)+'</b></div>').join('')+'<div class="row"><span>Open quote value<small class="muted" style="display:block">'+pending.length+' quotes awaiting a decision</small></span><b>'+fmtMoney(pending.reduce((n,e)=>n+(Number(e.total)||0),0))+'</b></div><small class="muted">This is a planning estimate, not a promise of future revenue.</small></div>'+
+ '<div class="card"><h3>Cloud backup history &amp; restore</h3><p class="muted">Daily backups are stored privately in Supabase. Restoring replaces the shared CRM workspace (jobs, customers, quotes, team workspace data) with the selected snapshot. Before restoring, the system saves the current workspace as a new safety backup. Employee login accounts and push subscriptions are not changed.</p><div id="cloudBackupHistory"><p class="muted">Loading secure backup history…</p></div><button class="secondary small" onclick="loadCloudBackupHistory()">Refresh backup list</button></div>';
+}
+function bindAdvancedTools(){}
+async function refreshRecurringJobs(){
+ if(accountRole!=='Owner'||!supabaseClient)return;
+ await syncAllContractVisits();
+ render();
+}
+async function loadCloudBackupHistory(){
+ const box=document.getElementById('cloudBackupHistory');
+ if(!box||accountRole!=='Owner'||!supabaseClient)return;
+ box.innerHTML='<p class="muted">Loading backups…</p>';
+ try{
+  const result=await supabaseClient.functions.invoke('backup-manager',{body:{action:'list'}});
+  if(result.error)throw result.error;
+  if(result.data?.error)throw new Error(result.data.error);
+  const rows=Array.isArray(result.data?.data)?result.data.data:[];
+  box.innerHTML=rows.length?rows.map(b=>'<div class="row" style="align-items:center"><span><b>'+escapeHtml(new Date(b.captured_at).toLocaleString())+'</b><small class="muted" style="display:block">Workspace saved '+escapeHtml(b.workspace_updated_at?new Date(b.workspace_updated_at).toLocaleString():'unknown')+' · '+Math.max(1,Math.round(Number(b.size_bytes||0)/1024))+' KB</small></span><button class="small danger" onclick="restoreCloudBackup(\''+b.id+'\')">Restore</button></div>').join(''):'<p class="muted">No cloud backups have been created yet.</p>';
+ }catch(e){box.innerHTML='<p class="notice">Could not load backup history: '+escapeHtml(e.message||'Please try again.')+'</p>'}
+}
+async function restoreCloudBackup(id){
+ if(accountRole!=='Owner'||!supabaseClient)return;
+ if(!confirm('Restore this backup? The current shared CRM workspace will be replaced with the selected snapshot. A new safety backup will be saved first. Employee login accounts and push subscriptions will not be changed.'))return;
+ try{
+  const result=await supabaseClient.functions.invoke('backup-manager',{body:{action:'restore',backupId:id}});
+  if(result.error)throw result.error;
+  if(result.data?.error)throw new Error(result.data.error);
+  const q=await supabaseClient.from('crm_workspaces').select('data,updated_at').eq('company_id',companyId).single();
+  if(q.error)throw q.error;
+  db=q.data.data||{};normalizeDb();lastSyncedJobs=JSON.stringify(db.jobs||[]);
+  try{localStorage.setItem(getDbKey(),JSON.stringify(db))}catch(_){}
+  setSyncStatus('Restored from cloud backup');
+  alert('Backup restored. The previous workspace was saved as a new safety backup.');
+  render();
+ }catch(e){alert('Restore failed: '+(e.message||'Please try again.'))}
+}
+async function createCustomerPortalLink(customerId){
+ if(accountRole!=='Owner'||!supabaseClient)return;
+ const c=db.customers.find(x=>x.id===customerId);if(!c)return;
+ try{
+  if(c.portalLinkId&&c.portalLinkExpiresAt&&new Date(c.portalLinkExpiresAt)>new Date()){
+   const revoke=await supabaseClient.functions.invoke('customer-portal',{body:{action:'revoke',linkId:c.portalLinkId}});
+   if(revoke.error||revoke.data?.error)throw revoke.error||new Error(revoke.data.error);
+  }
+  const result=await supabaseClient.functions.invoke('customer-portal',{body:{action:'create',customerId}});
+  if(result.error)throw result.error;
+  if(result.data?.error)throw new Error(result.data.error);
+  c.portalLinkId=result.data.id;c.portalLinkExpiresAt=result.data.expiresAt;save();render();
+  try{await navigator.clipboard.writeText(result.data.url);alert('Customer portal link copied. It expires '+new Date(result.data.expiresAt).toLocaleDateString()+'. Send it to the customer.')}
+  catch(_){prompt('Copy this customer portal link:',result.data.url)}
+ }catch(e){alert('Could not create portal link: '+(e.message||'Please try again.'))}
+}
+async function revokeCustomerPortalLink(customerId){
+ if(accountRole!=='Owner'||!supabaseClient)return;
+ const c=db.customers.find(x=>x.id===customerId);if(!c?.portalLinkId)return;
+ if(!confirm('Revoke this customer portal link? The customer will no longer be able to use it.'))return;
+ try{
+  const result=await supabaseClient.functions.invoke('customer-portal',{body:{action:'revoke',linkId:c.portalLinkId}});
+  if(result.error)throw result.error;if(result.data?.error)throw new Error(result.data.error);
+  c.portalLinkId=null;c.portalLinkExpiresAt=null;save();render();alert('Customer portal access revoked.');
+ }catch(e){alert('Could not revoke portal access: '+(e.message||'Please try again.'))}
+}
+
 function renderBusinessCenter(app){
  const done=db.jobs.filter(j=>j.status==='Completed'),gross=done.reduce((n,j)=>n+(+j.price||0),0),cost=db.expenses.reduce((n,e)=>n+(+e.amount||0),0),due=db.customers.filter(c=>!c.propertyProfile?.lastCleaningDate||(Date.now()-new Date(c.propertyProfile.lastCleaningDate+'T12:00:00').getTime())/86400000>=60);
  const staff=db.team.map(m=>{const a=done.filter(j=>j.assignee===m.name);const minutes=db.jobs.reduce((n,j)=>n+(j.timeEntries||[]).filter(x=>x.employee===m.name).reduce((z,x)=>z+(Number(x.minutes)||0),0),0);return {name:m.name,count:a.length,total:a.reduce((n,j)=>n+(+j.price||0),0),hours:minutes/60}});
@@ -639,10 +721,10 @@ function renderBusinessCenter(app){
  '<div class="card"><h3>Business reports</h3><p class="muted">Completed-job revenue and recorded expenses, grouped by month. Profit is an estimate before taxes.</p>'+[...new Set([...done.map(j=>(j.completedAt||j.date||'').slice(0,7)),...db.expenses.map(e=>(e.date||'').slice(0,7))].filter(Boolean))].sort().reverse().slice(0,12).map(m=>{const rev=done.filter(j=>(j.completedAt||j.date||'').slice(0,7)===m).reduce((n,j)=>n+(+j.price||0),0),ex=db.expenses.filter(e=>(e.date||'').slice(0,7)===m).reduce((n,e)=>n+(+e.amount||0),0);return '<div class="row"><b>'+escapeHtml(m)+'</b><span>Revenue '+fmtMoney(rev)+'</span><span>Expenses '+fmtMoney(ex)+'</span><strong>'+fmtMoney(rev-ex)+'</strong></div>'}).join('')+'</div>'+
  '<div class="card"><h3>Timesheet approvals</h3><p class="muted">Review employee timer entries before using them for payroll.</p>'+(db.jobs.flatMap(j=>(j.timeEntries||[]).filter(t=>!t.approved).map(t=>({j,t}))).map(({j,t})=>'<div class="row"><span>'+escapeHtml(t.employee)+' · '+escapeHtml(j.name)+' · '+(Number(t.minutes||0)/60).toFixed(2)+' hours</span><button class="small" onclick="approveTimeEntry(\''+j.id+'\',\''+t.id+'\')">Approve hours</button></div>').join('')||'<p class="muted">All recorded time entries are approved.</p>')+'</div>'+
  '<div class="card"><h3>Activity & notifications history</h3><p class="muted">Recent changes recorded in this workspace.</p>'+(db.activityLog||[]).slice(0,30).map(a=>'<div class="row"><span><b>'+escapeHtml(a.type)+'</b><small class="muted" style="display:block">'+escapeHtml(a.detail)+' · '+escapeHtml(a.by)+'</small></span><small>'+escapeHtml(new Date(a.at).toLocaleString())+'</small></div>').join('')+'</div>'+
- '<div class="card"><h3>Backup & recovery</h3><p class="muted">Import adds missing records only. It never replaces or deletes existing records.</p><button onclick="exportWorkspaceBackup()">Download backup</button> <label class="button secondary small" for="bcImport">Import backup</label><input id="bcImport" type="file" accept=".json,application/json" hidden></div>'+ownerOperationsHtml()+ownerGrowthTools();
+ '<div class="card"><h3>Backup & recovery</h3><p class="muted">Import adds missing records only. It never replaces or deletes existing records.</p><button onclick="exportWorkspaceBackup()">Download backup</button> <label class="button secondary small" for="bcImport">Import backup</label><input id="bcImport" type="file" accept=".json,application/json" hidden></div>'+ownerOperationsHtml()+ownerGrowthTools()+ownerAdvancedToolsHtml();
  const search=document.getElementById('bcSearch'),results=document.getElementById('bcResults');search.oninput=()=>{const q=search.value.toLowerCase(),all=[...db.customers.map(x=>({t:'Customer',n:x.name,d:x.address||'',fn:"editCustomer('"+x.id+"')"})),...db.jobs.map(x=>({t:'Job',n:x.name,d:x.date+' '+x.address,fn:"editJob('"+x.id+"')"}))];results.innerHTML=all.filter(x=>(x.t+' '+x.n+' '+x.d).toLowerCase().includes(q)).slice(0,12).map(x=>'<button class="secondary" style="display:block;width:100%;margin-top:6px;text-align:left" onclick="'+x.fn+'"><b>'+escapeHtml(x.n)+'</b><small class="muted" style="display:block">'+x.t+' · '+escapeHtml(x.d)+'</small></button>').join('')};
  document.getElementById('bcExpense').onsubmit=async e=>{e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f));let receiptPhoto='';try{const file=f.elements.receiptFile.files?.[0];if(file)receiptPhoto=await compressPropertyPhoto(file)}catch(err){alert(err.message||'Could not save receipt photo.');return}db.expenses.push({id:crypto.randomUUID(),title:d.title,amount:+d.amount,date:d.date,category:d.category,receiptPhoto});logActivity('Expense recorded',d.title+' · '+fmtMoney(d.amount));save();render()};
- document.getElementById('bcImport').onchange=importWorkspaceBackup;bindOwnerOperations();bindGrowthTools();
+ document.getElementById('bcImport').onchange=importWorkspaceBackup;bindOwnerOperations();bindGrowthTools();bindAdvancedTools();loadCloudBackupHistory();
 }
 function deleteExpense(id){if(!confirm('Delete this expense?'))return;db.expenses=db.expenses.filter(x=>x.id!==id);save();render()}
 function createInvoiceFromJob(id){const j=db.jobs.find(x=>x.id===id);if(!j||j.status!=='Completed'||db.invoices.some(i=>i.jobId===id))return;db.invoices.push({id:crypto.randomUUID(),jobId:id,invoiceNumber:'LC-'+Date.now().toString().slice(-6),customerId:j.customerId||null,customerName:j.name,address:j.address,total:+j.price||0,status:'Unpaid'});logActivity('Invoice created',j.name+' · '+fmtMoney(j.price));save();render()}

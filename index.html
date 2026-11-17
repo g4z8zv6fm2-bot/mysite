@@ -631,7 +631,8 @@ function bindGrowthTools(){const p=document.getElementById('growthProfit');if(p)
 function ownerAdvancedToolsHtml(){
  const staff=db.team.filter(m=>String(m.role||'').toLowerCase()!=='owner');
  const reliability=staff.map(m=>{
-  const assigned=db.jobs.filter(j=>String(j.assignee||'').trim().toLowerCase()===String(m.name||'').trim().toLowerCase());
+  const allAssigned=db.jobs.filter(j=>String(j.assignee||'').trim().toLowerCase()===String(m.name||'').trim().toLowerCase());
+  const assigned=allAssigned.filter(j=>(j.date||'')<=isoToday());
   const completed=assigned.filter(j=>j.status==='Completed').length;
   const cancelled=assigned.filter(j=>String(j.status||'').toLowerCase()==='cancelled');
   const minutes=assigned.reduce((n,j)=>n+(j.timeEntries||[]).filter(t=>t.employee===m.name).reduce((z,t)=>z+(Number(t.minutes)||0),0),0);
@@ -775,7 +776,7 @@ $('#todayLabel').textContent=new Date().toLocaleDateString(undefined,{weekday:'l
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 async function approvePortalEstimate(id){
  const token=window._lcPortalToken;if(!token)return;
- if(!confirm('Approve this cleaning estimate? Legendary Cleaners will be notified through the CRM.'))return;
+ if(!confirm('Approve this cleaning estimate? This will mark it as approved in the CRM.'))return;
  try{
   const client=window.supabase.createClient(window.LC_SUPABASE_URL,window.LC_SUPABASE_ANON_KEY);
   const result=await client.functions.invoke('customer-portal',{body:{action:'approve-estimate',token,estimateId:id}});

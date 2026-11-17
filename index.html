@@ -748,7 +748,19 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleDashboardMenu(
 
 $('#todayLabel').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+async function approvePortalEstimate(id){
+ const token=window._lcPortalToken;if(!token)return;
+ if(!confirm('Approve this cleaning estimate? Legendary Cleaners will be notified through the CRM.'))return;
+ try{
+  const client=window.supabase.createClient(window.LC_SUPABASE_URL,window.LC_SUPABASE_ANON_KEY);
+  const result=await client.functions.invoke('customer-portal',{body:{action:'approve-estimate',token,estimateId:id}});
+  if(result.error)throw result.error;if(result.data?.error)throw new Error(result.data.error);
+  alert('Estimate approved. Thank you!');
+  await renderPublicPortal(token);
+ }catch(e){alert('Could not approve estimate: '+(e.message||'Please contact Legendary Cleaners.'))}
+}
 async function renderPublicPortal(token){
+ window._lcPortalToken=token;
  const root=document.getElementById('authScreen');
  root.style.display='block';
  document.getElementById('appShell').classList.add('hidden');
@@ -761,9 +773,11 @@ async function renderPublicPortal(token){
   const d=result.data||{},c=d.customer||{};
   const appointments=Array.isArray(d.appointments)?d.appointments:[];
   const contracts=Array.isArray(d.contracts)?d.contracts:[];
+  const invoices=Array.isArray(d.invoices)?d.invoices:[];
+  const estimates=Array.isArray(d.estimates)?d.estimates:[];
   const appointmentHtml=appointments.length?appointments.map(a=>'<div style="padding:12px 0;border-bottom:1px solid #e3e8ef"><b>'+escapeHtml(a.date||'Date pending')+'</b><div class="muted">'+escapeHtml(a.time||'Time pending')+' · '+escapeHtml(a.status||'Scheduled')+(a.price!==null&&a.price!==undefined?' · '+fmtMoney(a.price):'')+'</div></div>').join(''):'<p class="muted">No appointments are currently linked to this customer profile.</p>';
   const contractHtml=contracts.length?contracts.map(x=>'<div style="padding:14px 0;border-bottom:1px solid #e3e8ef"><b>'+escapeHtml(x.title||'Cleaning agreement')+'</b><p class="muted">'+escapeHtml(String(x.termYears||'')+'-year term · '+String(x.status||'').replace(/_/g,' '))+' · '+fmtMoney(x.price)+'</p><p class="muted">Starts '+escapeHtml(x.startDate||'Not set')+'</p><div style="white-space:pre-wrap;line-height:1.55">'+escapeHtml(x.terms||'')+'</div></div>').join(''):'<p class="muted">No contracts are currently linked to this customer profile.</p>';
-  root.innerHTML='<main style="max-width:760px;margin:5vh auto;padding:14px"><div class="card"><div class="brand"><div class="logo" role="img" aria-label="Legendary Cleaners logo">LC</div><div><b>Legendary Cleaners</b><div class="muted">Customer Portal</div></div></div><h1>Welcome, '+escapeHtml(c.name||'Customer')+'</h1><p class="muted">'+escapeHtml(c.address||'')+'</p><p>Here you can review appointments and contracts associated with your customer account.</p></div><section class="card"><h2>Your appointments</h2>'+appointmentHtml+'</section><section class="card"><h2>Your contracts</h2>'+contractHtml+'</section><section class="card"><h2>Invoices and estimates</h2><p class="muted">Invoices and estimates are not yet stored in the CRM, so they are not available in this portal.</p></section><p class="muted" style="text-align:center">Private customer access · Link expires '+escapeHtml(new Date(d.expiresAt).toLocaleDateString())+'</p></main>';
+  root.innerHTML='<main style="max-width:760px;margin:5vh auto;padding:14px"><div class="card"><div class="brand"><div class="logo" role="img" aria-label="Legendary Cleaners logo">LC</div><div><b>Legendary Cleaners</b><div class="muted">Customer Portal</div></div></div><h1>Welcome, '+escapeHtml(c.name||'Customer')+'</h1><p class="muted">'+escapeHtml(c.address||'')+'</p><p>Here you can review appointments and contracts associated with your customer account.</p></div><section class="card"><h2>Your appointments</h2>'+appointmentHtml+'</section><section class="card"><h2>Your contracts</h2>'+contractHtml+'</section><section class="card"><h2>Your estimates</h2>'+ (estimates.length?estimates.map(e=>'<div style="padding:12px 0;border-bottom:1px solid #e3e8ef"><b>Estimate · '+escapeHtml(e.status||'Pending')+'</b><div class="muted">'+fmtMoney(e.total)+'</div>'+(e.notes?'<p class="muted">'+escapeHtml(e.notes)+'</p>':'')+(!['Approved','Declined','Converted'].includes(e.status)?'<button class="small" onclick="approvePortalEstimate(\''+escapeHtml(e.id)+'\')">Approve estimate</button>':'')+'</div>').join(''):'<p class="muted">No estimates are currently linked to this customer profile.</p>')+'</section><section class="card"><h2>Your invoices</h2>'+(invoices.length?invoices.map(i=>'<div style="padding:12px 0;border-bottom:1px solid #e3e8ef"><b>'+escapeHtml(i.invoiceNumber||'Invoice')+'</b><div class="muted">'+fmtMoney(i.total)+' · '+escapeHtml(i.status||'Unpaid')+'</div></div>').join(''):'<p class="muted">No invoices are currently linked to this customer profile.</p>')+'</section><p class="muted" style="text-align:center">Private customer access · Link expires '+escapeHtml(new Date(d.expiresAt).toLocaleDateString())+'</p></main>';
  }catch(error){
   root.innerHTML='<main style="max-width:620px;margin:8vh auto;padding:14px"><div class="card"><h2>Customer link unavailable</h2><p class="muted">'+escapeHtml(error.message||'This link is invalid, expired, or has been revoked. Contact Legendary Cleaners for a new link.')+'</p></div></main>';
  }

@@ -68,6 +68,8 @@ Deno.serve(async (req) => {
           normalize(job?.name) === customerName &&
           normalize(job?.address) === customerAddress;
       }).map((job: any) => ({
+        id: String(job.id || ""),
+        completedAt: String(job.completedAt || ""),
         date: String(job.date || ""),
         time: String(job.time || ""),
         status: String(job.status || "Scheduled"),

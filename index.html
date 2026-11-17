@@ -646,7 +646,7 @@ function ownerAdvancedToolsHtml(){
  return '<div class="card"><h3>Automatic recurring jobs</h3><p class="muted">Signed contracts create cleaning visits automatically. Those visits are synced into your calendar when you sign in. This button checks for any visits that have not appeared yet.</p><div class="row"><b>Future contract jobs</b><strong>'+future.filter(j=>j.contractGenerated||j.contractVisitId).length+'</strong></div>'+(recurring.length?recurring.map(j=>'<div class="row"><span>'+escapeHtml(j.name)+'<small class="muted" style="display:block">'+escapeHtml(j.date)+' · '+escapeHtml(j.time||'Time not set')+'</small></span><b>'+fmtMoney(j.price)+'</b></div>').join(''):'<p class="muted">No future contract visits are currently in the schedule.</p>')+'<button class="secondary full" onclick="refreshRecurringJobs()">Sync contract visits now</button></div>'+
  '<div class="card"><h3>Employee reliability report</h3><p class="muted">A simple work-history report based on assigned jobs and saved timers. It does not guess attendance or judge employees.</p>'+(reliability.length?reliability.map(m=>'<div style="padding:12px 0;border-bottom:1px solid var(--line)"><b>'+escapeHtml(m.name)+'</b><div class="grid"><div><small class="muted">Completed</small><strong>'+m.completed+'/'+m.assigned+'</strong></div><div><small class="muted">Completion rate</small><strong>'+m.rate+'%</strong></div><div><small class="muted">Tracked hours</small><strong>'+m.hours.toFixed(1)+'</strong></div><div><small class="muted">Jobs with timer</small><strong>'+m.timed+'</strong></div></div><small class="muted">'+m.cancelled+' cancelled jobs · timer hours are recorded from job time entries</small></div>').join(''):'<p class="muted">Add employees and assign jobs to build this report.</p>')+'</div>'+
  '<div class="card"><h3>Business forecast</h3><p class="muted">Booked revenue uses future scheduled jobs only. Quotes are shown separately as possible work, not guaranteed income.</p>'+horizons.map(h=>'<div class="row"><span>Next '+h.days+' days<small class="muted" style="display:block">'+h.rows.length+' scheduled jobs</small></span><b>'+fmtMoney(h.total)+'</b></div>').join('')+'<div class="row"><span>Open quote value<small class="muted" style="display:block">'+pending.length+' quotes awaiting a decision</small></span><b>'+fmtMoney(pending.reduce((n,e)=>n+(Number(e.total)||0),0))+'</b></div><small class="muted">This is a planning estimate, not a promise of future revenue.</small></div>'+
- '<div class="card"><h3>Cloud backup history &amp; restore</h3><p class="muted">Daily backups are stored privately in Supabase. Restoring replaces the shared CRM workspace (jobs, customers, quotes, team workspace data) with the selected snapshot. Before restoring, the system saves the current workspace as a new safety backup. Employee login accounts and push subscriptions are not changed.</p><div id="cloudBackupHistory"><p class="muted">Loading secure backup history…</p></div><button class="secondary small" onclick="loadCloudBackupHistory()">Refresh backup list</button></div>';
+ '<div class="card"><h3>Customer portal access</h3><p class="muted">Review active customer links and revoke access at any time. New links can be created from the customer list.</p><div id="customerPortalLinks"><p class="muted">Loading portal links…</p></div><button class="secondary small" onclick="loadCustomerPortalLinks()">Refresh portal links</button></div><div class="card"><h3>Cloud backup history &amp; restore</h3><p class="muted">Daily backups are stored privately in Supabase. Restoring replaces the shared CRM workspace (jobs, customers, quotes, team workspace data) with the selected snapshot. Before restoring, the system saves the current workspace as a new safety backup. Employee login accounts and push subscriptions are not changed.</p><div id="cloudBackupHistory"><p class="muted">Loading secure backup history…</p></div><button class="secondary small" onclick="loadCloudBackupHistory()">Refresh backup list</button></div>';
 }
 function bindAdvancedTools(){}
 async function refreshRecurringJobs(){
@@ -654,6 +654,31 @@ async function refreshRecurringJobs(){
  await syncAllContractVisits();
  render();
 }
+async function loadCustomerPortalLinks(){
+ const box=document.getElementById('customerPortalLinks');
+ if(!box||accountRole!=='Owner'||!supabaseClient)return;
+ box.innerHTML='<p class="muted">Loading links…</p>';
+ try{
+  const result=await supabaseClient.functions.invoke('customer-portal',{body:{action:'list'}});
+  if(result.error)throw result.error;if(result.data?.error)throw new Error(result.data.error);
+  const rows=Array.isArray(result.data?.links)?result.data.links:[];
+  box.innerHTML=rows.length?rows.map(x=>{
+   const expired=x.expiresAt&&new Date(x.expiresAt)<=new Date(),revoked=!!x.revokedAt;
+   const status=revoked?'Revoked':expired?'Expired':'Active';
+   return '<div class="row"><span><b>'+escapeHtml(x.customerName)+'</b><small class="muted" style="display:block">'+status+' · expires '+escapeHtml(x.expiresAt?new Date(x.expiresAt).toLocaleDateString():'unknown')+'</small></span>'+(!revoked&&!expired?'<button class="small danger" onclick="revokePortalLinkById(\''+x.id+'\')">Revoke</button>':'')+'</div>';
+  }).join(''):'<p class="muted">No customer portal links yet.</p>';
+ }catch(e){box.innerHTML='<p class="notice">Could not load portal links: '+escapeHtml(e.message||'Please try again.')+'</p>'}
+}
+async function revokePortalLinkById(id){
+ if(accountRole!=='Owner'||!supabaseClient||!confirm('Revoke this customer portal link?'))return;
+ try{
+  const result=await supabaseClient.functions.invoke('customer-portal',{body:{action:'revoke',linkId:id}});
+  if(result.error)throw result.error;if(result.data?.error)throw new Error(result.data.error);
+  db.customers.forEach(c=>{if(c.portalLinkId===id){c.portalLinkId=null;c.portalLinkExpiresAt=null}});
+  save();await loadCustomerPortalLinks();render();
+ }catch(e){alert('Could not revoke link: '+(e.message||'Please try again.'))}
+}
+
 async function loadCloudBackupHistory(){
  const box=document.getElementById('cloudBackupHistory');
  if(!box||accountRole!=='Owner'||!supabaseClient)return;
@@ -724,7 +749,7 @@ function renderBusinessCenter(app){
  '<div class="card"><h3>Backup & recovery</h3><p class="muted">Import adds missing records only. It never replaces or deletes existing records.</p><button onclick="exportWorkspaceBackup()">Download backup</button> <label class="button secondary small" for="bcImport">Import backup</label><input id="bcImport" type="file" accept=".json,application/json" hidden></div>'+ownerOperationsHtml()+ownerGrowthTools()+ownerAdvancedToolsHtml();
  const search=document.getElementById('bcSearch'),results=document.getElementById('bcResults');search.oninput=()=>{const q=search.value.toLowerCase(),all=[...db.customers.map(x=>({t:'Customer',n:x.name,d:x.address||'',fn:"editCustomer('"+x.id+"')"})),...db.jobs.map(x=>({t:'Job',n:x.name,d:x.date+' '+x.address,fn:"editJob('"+x.id+"')"}))];results.innerHTML=all.filter(x=>(x.t+' '+x.n+' '+x.d).toLowerCase().includes(q)).slice(0,12).map(x=>'<button class="secondary" style="display:block;width:100%;margin-top:6px;text-align:left" onclick="'+x.fn+'"><b>'+escapeHtml(x.n)+'</b><small class="muted" style="display:block">'+x.t+' · '+escapeHtml(x.d)+'</small></button>').join('')};
  document.getElementById('bcExpense').onsubmit=async e=>{e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f));let receiptPhoto='';try{const file=f.elements.receiptFile.files?.[0];if(file)receiptPhoto=await compressPropertyPhoto(file)}catch(err){alert(err.message||'Could not save receipt photo.');return}db.expenses.push({id:crypto.randomUUID(),title:d.title,amount:+d.amount,date:d.date,category:d.category,receiptPhoto});logActivity('Expense recorded',d.title+' · '+fmtMoney(d.amount));save();render()};
- document.getElementById('bcImport').onchange=importWorkspaceBackup;bindOwnerOperations();bindGrowthTools();bindAdvancedTools();loadCloudBackupHistory();
+ document.getElementById('bcImport').onchange=importWorkspaceBackup;bindOwnerOperations();bindGrowthTools();bindAdvancedTools();loadCloudBackupHistory();loadCustomerPortalLinks();
 }
 function deleteExpense(id){if(!confirm('Delete this expense?'))return;db.expenses=db.expenses.filter(x=>x.id!==id);save();render()}
 function createInvoiceFromJob(id){const j=db.jobs.find(x=>x.id===id);if(!j||j.status!=='Completed'||db.invoices.some(i=>i.jobId===id))return;db.invoices.push({id:crypto.randomUUID(),jobId:id,invoiceNumber:'LC-'+Date.now().toString().slice(-6),customerId:j.customerId||null,customerName:j.name,address:j.address,total:+j.price||0,status:'Unpaid'});logActivity('Invoice created',j.name+' · '+fmtMoney(j.price));save();render()}
